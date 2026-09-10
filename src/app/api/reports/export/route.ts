@@ -1,0 +1,35 @@
+import { NextResponse } from "next/server";
+import { getSession } from "@/lib/session";
+import { EmployeeNotFoundError, generateMonthlyReportExcel } from "@/lib/exportReport";
+
+// GET /api/reports/export?year=&month= -> export rekap laporan bulanan milik pegawai yang login
+export async function GET(req: Request) {
+  const session = await getSession();
+  if (!session || session.role !== "pegawai") {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { searchParams } = new URL(req.url);
+  const year = Number(searchParams.get("year"));
+  const month = Number(searchParams.get("month"));
+  if (!year || !month) {
+    return NextResponse.json({ error: "year & month wajib diisi" }, { status: 400 });
+  }
+
+  try {
+    // Selalu pakai session.id sendiri -> pegawai tidak bisa export data pegawai lain.
+    const { buffer, fileName } = await generateMonthlyReportExcel(session.id, year, month);
+    return new NextResponse(new Uint8Array(buffer), {
+      headers: {
+        "Content-Type":
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "Content-Disposition": `attachment; filename="${fileName}"`,
+      },
+    });
+  } catch (e) {
+    if (e instanceof EmployeeNotFoundError) {
+      return NextResponse.json({ error: e.message }, { status: 404 });
+    }
+    return NextResponse.json({ error: "Gagal mengekspor laporan" }, { status: 500 });
+  }
+}

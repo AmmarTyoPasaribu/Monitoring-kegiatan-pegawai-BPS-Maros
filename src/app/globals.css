@@ -1,0 +1,62 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f4f6f8;
+  --foreground: #0f172a;
+  --surface: #f8fafc;
+}
+
+@theme {
+  --color-brand-blue: #0093dd;
+  --color-brand-blue-dark: #006fa8;
+  --color-brand-orange: #eb891b;
+  --color-brand-green: #68b92e;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-jakarta);
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  background-image:
+    radial-gradient(circle at 1px 1px, rgba(0, 111, 168, 0.09) 1px, transparent 0);
+  background-size: 22px 22px;
+  background-attachment: fixed;
+}
+
+.card-surface {
+  border-radius: 1rem;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  background-color: var(--surface);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 12px 28px -14px rgba(15, 23, 42, 0.14);
+}
+
+.brand-panel {
+  background-color: var(--color-brand-blue);
+  background-image:
+    radial-gradient(circle, rgba(255, 255, 255, 0.16) 1px, transparent 1px),
+    linear-gradient(165deg, rgba(255, 255, 255, 0.12), rgba(0, 0, 0, 0.16));
+  background-size:
+    18px 18px,
+    100% 100%;
+  background-position: 0 0;
+}
+
+/* Sembunyikan spinner default input number (dipakai untuk Progress %) */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  appearance: textfield;
+}
