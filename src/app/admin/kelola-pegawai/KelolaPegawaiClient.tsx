@@ -1,20 +1,34 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Pencil, Plus, Trash2, UserRound } from "lucide-react";
+import { Pencil, Plus, Search, Trash2, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Avatar } from "@/components/ui/Avatar";
+import { Input } from "@/components/ui/Field";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { EmployeeFormModal, type Employee } from "@/components/admin/EmployeeFormModal";
 
 export function KelolaPegawaiClient({ initialEmployees }: { initialEmployees: Employee[] }) {
   const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
+  const [query, setQuery] = useState("");
   const [formOpen, setFormOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [formKey, setFormKey] = useState(0);
   const [deleteTarget, setDeleteTarget] = useState<Employee | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return employees;
+    return employees.filter(
+      (e) =>
+        e.full_name.toLowerCase().includes(q) ||
+        e.username.toLowerCase().includes(q) ||
+        e.email.toLowerCase().includes(q) ||
+        (e.division || "").toLowerCase().includes(q)
+    );
+  }, [employees, query]);
 
   function openCreate() {
     setEditingEmployee(null);
@@ -60,65 +74,119 @@ export function KelolaPegawaiClient({ initialEmployees }: { initialEmployees: Em
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button onClick={openCreate}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative sm:w-72">
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+          <Input
+            className="pl-10"
+            placeholder="Cari nama, username, email, divisi..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </div>
+        <Button onClick={openCreate} className="shrink-0">
           <Plus className="size-4" /> Tambah Pegawai
         </Button>
       </div>
 
-      <div className="card-surface overflow-hidden">
-        {employees.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <UserRound className="size-10 text-slate-300" />
-            <p className="mt-3 text-sm font-medium text-slate-500">Belum ada data pegawai</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase text-slate-500">
-                <tr>
-                  <th className="px-5 py-3 font-semibold">Nama</th>
-                  <th className="px-5 py-3 font-semibold">Username</th>
-                  <th className="px-5 py-3 font-semibold">Email</th>
-                  <th className="px-5 py-3 font-semibold">Divisi</th>
-                  <th className="px-5 py-3 text-right font-semibold">Aksi</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {employees.map((emp) => (
-                  <tr key={emp.id} className="hover:bg-slate-50">
-                    <td className="flex items-center gap-3 px-5 py-3">
-                      <Avatar src={emp.photo_url} name={emp.full_name} className="size-9 text-xs" />
-                      <span className="font-medium text-slate-900">{emp.full_name}</span>
-                    </td>
-                    <td className="px-5 py-3 text-slate-600">{emp.username}</td>
-                    <td className="px-5 py-3 text-slate-600">{emp.email}</td>
-                    <td className="px-5 py-3 text-slate-600">{emp.division || "-"}</td>
-                    <td className="px-5 py-3">
-                      <div className="flex justify-end gap-2">
-                        <button
-                          onClick={() => openEdit(emp)}
-                          className="flex size-8 items-center justify-center rounded-lg bg-amber-100 text-amber-600 transition-colors hover:bg-amber-500 hover:text-white"
-                          aria-label={`Edit ${emp.full_name}`}
-                        >
-                          <Pencil className="size-4" />
-                        </button>
-                        <button
-                          onClick={() => setDeleteTarget(emp)}
-                          className="flex size-8 items-center justify-center rounded-lg bg-red-100 text-red-600 transition-colors hover:bg-red-600 hover:text-white"
-                          aria-label={`Hapus ${emp.full_name}`}
-                        >
-                          <Trash2 className="size-4" />
-                        </button>
-                      </div>
-                    </td>
+      {employees.length === 0 ? (
+        <div className="card-surface flex flex-col items-center justify-center py-16 text-center">
+          <UserRound className="size-10 text-slate-300" />
+          <p className="mt-3 text-sm font-medium text-slate-500">Belum ada data pegawai</p>
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="card-surface flex flex-col items-center justify-center py-16 text-center">
+          <Search className="size-10 text-slate-300" />
+          <p className="mt-3 text-sm font-medium text-slate-500">
+            Tidak ada pegawai yang cocok dengan &quot;{query}&quot;
+          </p>
+        </div>
+      ) : (
+        <>
+          {/* Tabel — desktop/tablet */}
+          <div className="card-surface hidden overflow-hidden sm:block">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[640px] text-left text-sm">
+                <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+                  <tr>
+                    <th className="px-5 py-3 font-semibold">Nama</th>
+                    <th className="px-5 py-3 font-semibold">Username</th>
+                    <th className="px-5 py-3 font-semibold">Email</th>
+                    <th className="px-5 py-3 font-semibold">Divisi</th>
+                    <th className="px-5 py-3 text-right font-semibold">Aksi</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filtered.map((emp) => (
+                    <tr key={emp.id} className="hover:bg-slate-50">
+                      <td className="flex items-center gap-3 px-5 py-3">
+                        <Avatar src={emp.photo_url} name={emp.full_name} className="size-9 text-xs" />
+                        <span className="font-medium text-slate-900">{emp.full_name}</span>
+                      </td>
+                      <td className="px-5 py-3 text-slate-600">{emp.username}</td>
+                      <td className="px-5 py-3 text-slate-600">{emp.email}</td>
+                      <td className="px-5 py-3 text-slate-600">{emp.division || "-"}</td>
+                      <td className="px-5 py-3">
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => openEdit(emp)}
+                            className="flex size-8 items-center justify-center rounded-lg bg-amber-100 text-amber-600 transition-colors hover:bg-amber-500 hover:text-white"
+                            aria-label={`Edit ${emp.full_name}`}
+                          >
+                            <Pencil className="size-4" />
+                          </button>
+                          <button
+                            onClick={() => setDeleteTarget(emp)}
+                            className="flex size-8 items-center justify-center rounded-lg bg-red-100 text-red-600 transition-colors hover:bg-red-600 hover:text-white"
+                            aria-label={`Hapus ${emp.full_name}`}
+                          >
+                            <Trash2 className="size-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        )}
-      </div>
+
+          {/* Kartu — mobile */}
+          <div className="space-y-3 sm:hidden">
+            {filtered.map((emp) => (
+              <div key={emp.id} className="card-surface flex items-start gap-3 p-4">
+                <Avatar src={emp.photo_url} name={emp.full_name} className="size-11 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-heading font-bold text-slate-900">{emp.full_name}</p>
+                  <p className="truncate text-xs text-slate-500">{emp.division || "-"}</p>
+                  <p className="mt-1.5 truncate text-xs text-slate-500">
+                    <span className="text-slate-400">User:</span> {emp.username}
+                  </p>
+                  <p className="truncate text-xs text-slate-500">
+                    <span className="text-slate-400">Email:</span> {emp.email}
+                  </p>
+                </div>
+                <div className="flex shrink-0 flex-col gap-2">
+                  <button
+                    onClick={() => openEdit(emp)}
+                    className="flex size-8 items-center justify-center rounded-lg bg-amber-100 text-amber-600 transition-colors hover:bg-amber-500 hover:text-white"
+                    aria-label={`Edit ${emp.full_name}`}
+                  >
+                    <Pencil className="size-4" />
+                  </button>
+                  <button
+                    onClick={() => setDeleteTarget(emp)}
+                    className="flex size-8 items-center justify-center rounded-lg bg-red-100 text-red-600 transition-colors hover:bg-red-600 hover:text-white"
+                    aria-label={`Hapus ${emp.full_name}`}
+                  >
+                    <Trash2 className="size-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
 
       <EmployeeFormModal
         key={formKey}

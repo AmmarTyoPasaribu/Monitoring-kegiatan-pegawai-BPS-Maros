@@ -25,7 +25,7 @@ export async function proxy(req: NextRequest) {
   const isLoginRoute = pathname === "/login";
 
   if (isLoginRoute && role) {
-    const dest = role === "admin" ? "/admin/pegawai" : "/dashboard/beranda";
+    const dest = role === "admin" ? "/admin/ringkasan" : "/dashboard/beranda";
     return NextResponse.redirect(new URL(dest, req.url));
   }
 

@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Download, Loader2, UserRound } from "lucide-react";
+import { Download, Loader2, UserRound, Users } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
-import { Select } from "@/components/ui/Field";
+import { Combobox } from "@/components/ui/Combobox";
 import { Button } from "@/components/ui/Button";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { MonthCalendar, type DateStatus } from "@/components/pegawai/MonthCalendar";
@@ -41,8 +41,20 @@ export function KegiatanPegawaiClient({
   const [loading, setLoading] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [exportAllOpen, setExportAllOpen] = useState(false);
+  const [exportingAll, setExportingAll] = useState(false);
 
   const selectedEmployee = employees.find((e) => e.id === employeeId) || null;
+
+  const employeeOptions = useMemo(
+    () =>
+      employees.map((e) => ({
+        value: e.id,
+        label: e.full_name,
+        sublabel: e.division,
+      })),
+    [employees]
+  );
 
   useEffect(() => {
     if (!employeeId) return;
@@ -101,31 +113,59 @@ export function KegiatanPegawaiClient({
     });
   }
 
+  async function downloadFile(url: string, fileName: string) {
+    const res = await fetch(url);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      toast.error(data.error || "Gagal mengekspor data");
+      return false;
+    }
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = objectUrl;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(objectUrl);
+    return true;
+  }
+
   async function handleExport() {
     if (!employeeId) return;
     setExporting(true);
     try {
-      const res = await fetch(`/api/admin/employees/${employeeId}/export?year=${year}&month=${month}`);
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        toast.error(data.error || "Gagal mengekspor data");
-        return;
+      const ok = await downloadFile(
+        `/api/admin/employees/${employeeId}/export?year=${year}&month=${month}`,
+        `Laporan_${selectedEmployee?.full_name || "Pegawai"}_${monthNameId(month)}_${year}.xlsx`
+      );
+      if (ok) {
+        toast.success("Rekap berhasil diekspor");
+        setExportOpen(false);
       }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `Laporan_${selectedEmployee?.full_name || "Pegawai"}_${monthNameId(month)}_${year}.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-      toast.success("Rekap berhasil diekspor");
-      setExportOpen(false);
     } catch {
       toast.error("Terjadi kesalahan jaringan");
     } finally {
       setExporting(false);
+    }
+  }
+
+  async function handleExportAll() {
+    setExportingAll(true);
+    try {
+      const ok = await downloadFile(
+        `/api/admin/export-all?year=${year}&month=${month}`,
+        `Rekap_Semua_Pegawai_${monthNameId(month)}_${year}.xlsx`
+      );
+      if (ok) {
+        toast.success("Rekap semua pegawai berhasil diekspor");
+        setExportAllOpen(false);
+      }
+    } catch {
+      toast.error("Terjadi kesalahan jaringan");
+    } finally {
+      setExportingAll(false);
     }
   }
 
@@ -143,27 +183,27 @@ export function KegiatanPegawaiClient({
       <div className="card-surface flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           {selectedEmployee && (
-            <Avatar src={selectedEmployee.photo_url} name={selectedEmployee.full_name} className="size-11" />
+            <Avatar src={selectedEmployee.photo_url} name={selectedEmployee.full_name} className="size-11 shrink-0" />
           )}
-          <div className="min-w-[220px]">
-            <Select
-              value={employeeId}
-              onChange={(e) => {
-                setEmployeeId(e.target.value);
-                setSelectedDate(todayWitaDateString());
-              }}
-            >
-              {employees.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.full_name}
-                </option>
-              ))}
-            </Select>
-          </div>
+          <Combobox
+            className="min-w-[240px]"
+            options={employeeOptions}
+            value={employeeId}
+            searchPlaceholder="Ketik nama pegawai..."
+            onChange={(id) => {
+              setEmployeeId(id);
+              setSelectedDate(todayWitaDateString());
+            }}
+          />
         </div>
-        <Button onClick={() => setExportOpen(true)} variant="success">
-          <Download className="size-4" /> Export to Excel
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={() => setExportAllOpen(true)} variant="outline">
+            <Users className="size-4" /> Export Semua Pegawai
+          </Button>
+          <Button onClick={() => setExportOpen(true)} variant="success">
+            <Download className="size-4" /> Export to Excel
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -196,6 +236,17 @@ export function KegiatanPegawaiClient({
         loading={exporting}
         onConfirm={handleExport}
         onCancel={() => setExportOpen(false)}
+      />
+
+      <ConfirmModal
+        open={exportAllOpen}
+        title="Export Semua Pegawai"
+        description={`Export rekap laporan SELURUH pegawai (${employees.length} orang) periode ${monthNameId(month)} ${year} dalam satu file Excel (satu sheet per pegawai)?`}
+        confirmLabel="Export Semua"
+        variant="success"
+        loading={exportingAll}
+        onConfirm={handleExportAll}
+        onCancel={() => setExportAllOpen(false)}
       />
     </div>
   );

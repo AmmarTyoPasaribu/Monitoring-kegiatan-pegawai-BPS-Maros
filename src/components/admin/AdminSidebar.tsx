@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Users, UserCog, ClipboardList, X } from "lucide-react";
+import { LayoutDashboard, Users, UserCog, ClipboardList, X } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 const NAV_ITEMS = [
+  { href: "/admin/ringkasan", label: "Ringkasan", icon: LayoutDashboard },
   { href: "/admin/pegawai", label: "Daftar Pegawai", icon: Users },
   { href: "/admin/kelola-pegawai", label: "Kelola Pegawai", icon: UserCog },
   { href: "/admin/kegiatan-pegawai", label: "Kegiatan Pegawai", icon: ClipboardList },

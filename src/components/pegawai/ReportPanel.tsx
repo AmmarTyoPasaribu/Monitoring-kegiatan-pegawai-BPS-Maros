@@ -33,14 +33,14 @@ function reportToForm(r: DailyReport): DailyReportInput {
   };
 }
 
-const FIELD_LABELS: { key: keyof DailyReportInput; label: string; area: boolean }[] = [
-  { key: "rencana_kinerja", label: "Rencana Kinerja", area: true },
-  { key: "kegiatan", label: "Kegiatan", area: true },
-  { key: "target", label: "Target", area: false },
-  { key: "realisasi", label: "Realisasi", area: false },
-  { key: "kendala", label: "Kendala", area: true },
-  { key: "solusi", label: "Solusi", area: true },
-  { key: "keterangan", label: "Keterangan", area: true },
+const FIELD_LABELS: { key: keyof DailyReportInput; label: string; required?: boolean }[] = [
+  { key: "rencana_kinerja", label: "Rencana Kinerja", required: true },
+  { key: "kegiatan", label: "Kegiatan", required: true },
+  { key: "target", label: "Target" },
+  { key: "realisasi", label: "Realisasi" },
+  { key: "kendala", label: "Kendala" },
+  { key: "solusi", label: "Solusi" },
+  { key: "keterangan", label: "Keterangan" },
 ];
 
 // Parent harus memberi `key={date}` supaya komponen ini remount tiap ganti tanggal,
@@ -89,11 +89,13 @@ export function ReportPanel({
     }
   }
 
-  const isValid =
-    form.rencana_kinerja.trim() &&
-    form.kegiatan.trim() &&
-    form.progress >= 0 &&
-    form.progress <= 100;
+  function handleSubmitClick() {
+    if (!form.rencana_kinerja.trim() || !form.kegiatan.trim()) {
+      toast.error("Rencana Kinerja atau Kegiatan belum terisi");
+      return;
+    }
+    setConfirmOpen(true);
+  }
 
   return (
     <div className="card-surface p-5">
@@ -125,70 +127,55 @@ export function ReportPanel({
           ))}
           <div>
             <p className="text-xs font-bold text-brand-blue-dark">Progress</p>
-            <p className="text-sm text-slate-700">{existing.progress ?? 0}%</p>
+            <div className="mt-1 flex items-center gap-2">
+              <div className="h-2 w-full max-w-40 overflow-hidden rounded-full bg-slate-100">
+                <div
+                  className="h-full rounded-full bg-brand-blue"
+                  style={{ width: `${existing.progress ?? 0}%` }}
+                />
+              </div>
+              <span className="text-sm font-semibold text-slate-700">
+                {existing.progress ?? 0}%
+              </span>
+            </div>
           </div>
         </div>
       ) : (
         <div className="space-y-4">
-          {FIELD_LABELS.slice(0, 2).map(({ key, label, area }) => (
+          {FIELD_LABELS.slice(0, 4).map(({ key, label, required }) => (
             <div key={key}>
-              <Label required>{label}</Label>
-              {area ? (
-                <Textarea
-                  value={form[key]}
-                  onChange={(e) => updateField(key, e.target.value)}
-                />
-              ) : (
-                <Input
-                  value={form[key]}
-                  onChange={(e) => updateField(key, e.target.value)}
-                />
-              )}
+              <Label required={required}>{label}</Label>
+              <Textarea
+                value={form[key]}
+                onChange={(e) => updateField(key, e.target.value)}
+              />
             </div>
           ))}
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Target</Label>
-              <Input
-                value={form.target}
-                onChange={(e) => updateField("target", e.target.value)}
-              />
-            </div>
-            <div>
-              <Label>Realisasi</Label>
-              <Input
-                value={form.realisasi}
-                onChange={(e) => updateField("realisasi", e.target.value)}
-              />
-            </div>
-          </div>
-
           <div>
-            <Label>Progress (%)</Label>
+            <Label>
+              Progress (%){" "}
+              <span className="font-normal text-slate-400">(0-100)</span>
+            </Label>
             <Input
               type="number"
               min={0}
               max={100}
-              value={form.progress}
-              onChange={(e) => updateField("progress", Number(e.target.value))}
+              placeholder="0-100"
+              value={form.progress === 0 ? "" : form.progress}
+              onChange={(e) =>
+                updateField("progress", e.target.value === "" ? 0 : Number(e.target.value))
+              }
             />
           </div>
 
-          {FIELD_LABELS.slice(4).map(({ key, label, area }) => (
+          {FIELD_LABELS.slice(4).map(({ key, label, required }) => (
             <div key={key}>
-              <Label>{label}</Label>
-              {area ? (
-                <Textarea
-                  value={form[key]}
-                  onChange={(e) => updateField(key, e.target.value)}
-                />
-              ) : (
-                <Input
-                  value={form[key]}
-                  onChange={(e) => updateField(key, e.target.value)}
-                />
-              )}
+              <Label required={required}>{label}</Label>
+              <Textarea
+                value={form[key]}
+                onChange={(e) => updateField(key, e.target.value)}
+              />
             </div>
           ))}
 
@@ -204,10 +191,7 @@ export function ReportPanel({
                 Batal
               </Button>
             )}
-            <Button
-              onClick={() => setConfirmOpen(true)}
-              disabled={!isValid}
-            >
+            <Button onClick={handleSubmitClick}>
               {existing ? "Simpan Perubahan" : "Kirim Laporan"}
             </Button>
           </div>

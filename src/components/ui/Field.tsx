@@ -1,3 +1,6 @@
+"use client";
+
+import { useLayoutEffect, useRef } from "react";
 import { cn } from "@/lib/cn";
 import type {
   InputHTMLAttributes,
@@ -30,13 +33,27 @@ export function Input({
   return <input className={cn(baseFieldClass, className)} {...props} />;
 }
 
+// Textarea yang otomatis membesar mengikuti panjang isinya, tidak perlu
+// ditarik-tarik manual. Tetap punya min-height & bisa ditarik lebih besar lagi.
 export function Textarea({
   className,
+  value,
   ...props
 }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [value]);
+
   return (
     <textarea
-      className={cn(baseFieldClass, "min-h-24 resize-y", className)}
+      ref={ref}
+      value={value}
+      className={cn(baseFieldClass, "min-h-24 resize-none overflow-hidden", className)}
       {...props}
     />
   );

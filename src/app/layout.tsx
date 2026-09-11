@@ -31,7 +31,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col text-slate-900">
         {children}
-        <Toaster position="top-center" richColors closeButton />
+        <Toaster position="top-center" richColors closeButton offset={{ top: 84 }} mobileOffset={{ top: 84 }} />
       </body>
     </html>
   );

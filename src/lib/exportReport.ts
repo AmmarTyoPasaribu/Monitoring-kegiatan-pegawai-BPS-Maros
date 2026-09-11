@@ -18,39 +18,29 @@ const COLUMNS = [
 
 export class EmployeeNotFoundError extends Error {}
 
-/** Generate buffer Excel rekap laporan bulanan seorang pegawai. */
-export async function generateMonthlyReportExcel(userId: string, year: number, month: number) {
-  const { data: employee, error: empError } = await supabaseAdmin
-    .from("users")
-    .select("full_name, division")
-    .eq("id", userId)
-    .eq("role", "pegawai")
-    .maybeSingle();
-
-  if (empError || !employee) {
-    throw new EmployeeNotFoundError("Pegawai tidak ditemukan");
-  }
-
+/** Tambahkan satu sheet rekap bulanan seorang pegawai ke workbook yang ada. */
+function addMonthlyReportSheet(
+  workbook: ExcelJS.Workbook,
+  employeeName: string,
+  reports: DailyReport[],
+  year: number,
+  month: number,
+  usedSheetNames: Set<string>
+) {
   const totalDays = daysInMonth(year, month);
-  const start = `${year}-${String(month).padStart(2, "0")}-01`;
-  const end = `${year}-${String(month).padStart(2, "0")}-${String(totalDays).padStart(2, "0")}`;
-
-  const { data: reports, error: repError } = await supabaseAdmin
-    .from("daily_reports")
-    .select("*")
-    .eq("user_id", userId)
-    .gte("report_date", start)
-    .lte("report_date", end);
-
-  if (repError) {
-    throw new Error("Gagal mengambil laporan");
-  }
-
   const reportByDate = new Map<string, DailyReport>();
-  for (const r of reports || []) reportByDate.set(r.report_date, r);
+  for (const r of reports) reportByDate.set(r.report_date, r);
 
-  const workbook = new ExcelJS.Workbook();
-  const sheet = workbook.addWorksheet(employee.full_name.slice(0, 28) || "Laporan");
+  let sheetName = employeeName.replace(/[[\]*/\\?:]/g, "").slice(0, 28) || "Laporan";
+  let suffix = 2;
+  while (usedSheetNames.has(sheetName)) {
+    const base = employeeName.replace(/[[\]*/\\?:]/g, "").slice(0, 24) || "Laporan";
+    sheetName = `${base} (${suffix})`;
+    suffix++;
+  }
+  usedSheetNames.add(sheetName);
+
+  const sheet = workbook.addWorksheet(sheetName);
   sheet.columns = COLUMNS.map((c) => ({ width: c.width }));
 
   const titleRow = sheet.addRow([
@@ -66,7 +56,7 @@ export async function generateMonthlyReportExcel(userId: string, year: number, m
   };
 
   const infoRows: [string, string][] = [
-    ["Nama Pegawai", employee.full_name],
+    ["Nama Pegawai", employeeName],
     ["Tahun", String(year)],
     ["Periode", `1 - ${totalDays} ${monthNameId(month)} ${year}`],
     ["Wilayah", "Maros"],
@@ -120,11 +110,96 @@ export async function generateMonthlyReportExcel(userId: string, year: number, m
       cell.alignment = { vertical: "top", wrapText: true };
     });
   }
+}
+
+/** Generate buffer Excel rekap laporan bulanan seorang pegawai. */
+export async function generateMonthlyReportExcel(userId: string, year: number, month: number) {
+  const { data: employee, error: empError } = await supabaseAdmin
+    .from("users")
+    .select("full_name")
+    .eq("id", userId)
+    .eq("role", "pegawai")
+    .maybeSingle();
+
+  if (empError || !employee) {
+    throw new EmployeeNotFoundError("Pegawai tidak ditemukan");
+  }
+
+  const totalDays = daysInMonth(year, month);
+  const start = `${year}-${String(month).padStart(2, "0")}-01`;
+  const end = `${year}-${String(month).padStart(2, "0")}-${String(totalDays).padStart(2, "0")}`;
+
+  const { data: reports, error: repError } = await supabaseAdmin
+    .from("daily_reports")
+    .select("*")
+    .eq("user_id", userId)
+    .gte("report_date", start)
+    .lte("report_date", end);
+
+  if (repError) {
+    throw new Error("Gagal mengambil laporan");
+  }
+
+  const workbook = new ExcelJS.Workbook();
+  addMonthlyReportSheet(workbook, employee.full_name, reports || [], year, month, new Set());
 
   const buffer = await workbook.xlsx.writeBuffer();
   const fileName = `Laporan_${employee.full_name.replace(/[^a-z0-9]+/gi, "_")}_${monthNameId(
     month
   )}_${year}.xlsx`;
+
+  return { buffer, fileName };
+}
+
+/** Generate satu workbook berisi rekap bulanan SEMUA pegawai (satu sheet per pegawai). */
+export async function generateAllEmployeesMonthlyReportExcel(year: number, month: number) {
+  const { data: employees, error: empError } = await supabaseAdmin
+    .from("users")
+    .select("id, full_name")
+    .eq("role", "pegawai")
+    .order("full_name", { ascending: true });
+
+  if (empError) throw new Error("Gagal mengambil data pegawai");
+  if (!employees || employees.length === 0) {
+    throw new EmployeeNotFoundError("Belum ada data pegawai");
+  }
+
+  const totalDays = daysInMonth(year, month);
+  const start = `${year}-${String(month).padStart(2, "0")}-01`;
+  const end = `${year}-${String(month).padStart(2, "0")}-${String(totalDays).padStart(2, "0")}`;
+
+  // Satu query untuk semua laporan bulan ini, lalu dikelompokkan per pegawai di JS
+  // (jauh lebih efisien daripada satu query per pegawai).
+  const { data: allReports, error: repError } = await supabaseAdmin
+    .from("daily_reports")
+    .select("*")
+    .gte("report_date", start)
+    .lte("report_date", end);
+
+  if (repError) throw new Error("Gagal mengambil laporan");
+
+  const reportsByUser = new Map<string, DailyReport[]>();
+  for (const r of allReports || []) {
+    const list = reportsByUser.get(r.user_id) || [];
+    list.push(r);
+    reportsByUser.set(r.user_id, list);
+  }
+
+  const workbook = new ExcelJS.Workbook();
+  const usedSheetNames = new Set<string>();
+  for (const emp of employees) {
+    addMonthlyReportSheet(
+      workbook,
+      emp.full_name,
+      reportsByUser.get(emp.id) || [],
+      year,
+      month,
+      usedSheetNames
+    );
+  }
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  const fileName = `Rekap_Semua_Pegawai_${monthNameId(month)}_${year}.xlsx`;
 
   return { buffer, fileName };
 }

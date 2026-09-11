@@ -56,7 +56,7 @@ export async function POST(req: Request) {
 
   const res = NextResponse.json({
     role: user.role,
-    redirectTo: user.role === "admin" ? "/admin/pegawai" : "/dashboard/beranda",
+    redirectTo: user.role === "admin" ? "/admin/ringkasan" : "/dashboard/beranda",
   });
 
   res.cookies.set(SESSION_COOKIE_NAME, token, {
