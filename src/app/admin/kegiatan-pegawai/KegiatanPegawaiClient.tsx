@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { MonthCalendar, type DateStatus } from "@/components/pegawai/MonthCalendar";
 import { AdminReportDetail } from "@/components/admin/AdminReportDetail";
+import { AdminNoteEditor } from "@/components/admin/AdminNoteEditor";
 import { getWitaNowParts, monthNameId, todayWitaDateString } from "@/lib/time";
 import type { DailyReport } from "@/types";
 
@@ -223,7 +224,25 @@ export function KegiatanPegawaiClient({
             <Loader2 className="size-6 animate-spin" />
           </div>
         ) : (
-          selectedDate && <AdminReportDetail date={selectedDate} report={selectedReport} />
+          selectedDate && (
+            <div className="space-y-4">
+              <AdminReportDetail date={selectedDate} report={selectedReport} />
+              {selectedReport && (
+                <AdminNoteEditor
+                  key={selectedReport.id}
+                  reportId={selectedReport.id}
+                  initialNote={selectedReport.admin_note}
+                  onSaved={(note) => {
+                    setReports((prev) =>
+                      prev.map((r) =>
+                        r.id === selectedReport.id ? { ...r, admin_note: note } : r
+                      )
+                    );
+                  }}
+                />
+              )}
+            </div>
+          )
         )}
       </div>
 

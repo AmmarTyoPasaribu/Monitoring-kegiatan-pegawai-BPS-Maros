@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Pencil } from "lucide-react";
+import { MessageSquare, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { Input, Label, Textarea } from "@/components/ui/Field";
@@ -117,6 +117,17 @@ export function ReportPanel({
 
       {!editing && existing ? (
         <div className="space-y-4">
+          {existing.admin_note && (
+            <div className="rounded-xl border border-brand-blue/20 bg-brand-blue/5 p-3.5">
+              <div className="mb-1 flex items-center gap-1.5 text-brand-blue-dark">
+                <MessageSquare className="size-3.5" />
+                <p className="text-xs font-bold">Catatan dari Admin</p>
+              </div>
+              <p className="whitespace-pre-wrap break-words text-sm text-slate-700">
+                {existing.admin_note}
+              </p>
+            </div>
+          )}
           {FIELD_LABELS.map(({ key, label }) => (
             <div key={key}>
               <p className="text-xs font-bold text-brand-blue-dark">{label}</p>

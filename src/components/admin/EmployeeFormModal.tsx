@@ -8,6 +8,7 @@ import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { Button } from "@/components/ui/Button";
 import { Input, Label } from "@/components/ui/Field";
 import { Avatar } from "@/components/ui/Avatar";
+import { compressImage } from "@/lib/compressImage";
 
 export interface Employee {
   id: string;
@@ -48,15 +49,21 @@ export function EmployeeFormModal({ open, onClose, employee, onSaved }: Employee
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
+    e.target.value = ""; // supaya bisa pilih file yang sama lagi kalau perlu
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error("Ukuran foto maksimal 2MB");
+    if (file.size > 15 * 1024 * 1024) {
+      toast.error("Ukuran foto maksimal 15MB");
       return;
     }
-    setPhotoFile(file);
-    setPreview(URL.createObjectURL(file));
+    const compressed = await compressImage(file);
+    if (compressed.size > 2 * 1024 * 1024) {
+      toast.error("Foto masih terlalu besar setelah dikompres, coba foto lain");
+      return;
+    }
+    setPhotoFile(compressed);
+    setPreview(URL.createObjectURL(compressed));
   }
 
   const isValid =

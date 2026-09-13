@@ -118,6 +118,62 @@ values (
 on conflict (username) do nothing;
 
 -- =====================================================================
+-- 7. FUNGSI MONITORING PENYIMPANAN (dipakai halaman Admin > Penyimpanan)
+-- Postgres tidak mengekspos ukuran database lewat REST API biasa, jadi
+-- disediakan lewat fungsi SQL yang dipanggil via supabase.rpc(...).
+-- =====================================================================
+create or replace function public.get_database_size()
+returns bigint
+language sql
+security definer
+set search_path = public
+as $$
+  select pg_database_size(current_database());
+$$;
+
+-- v2: hitungan baris asli (COUNT(*)) per tabel, bukan lagi estimasi
+-- reltuples (yang bisa basi/menunjukkan 0 kalau tabel belum sempat
+-- di-ANALYZE otomatis oleh Postgres meski datanya ada). Tabel di aplikasi
+-- ini kecil, jadi COUNT(*) asli tidak masalah dari sisi performa.
+-- DROP dulu karena tipe kolom hasil (row_count vs row_estimate) berubah --
+-- CREATE OR REPLACE tidak bisa mengubah signature return sebuah fungsi.
+drop function if exists public.get_table_sizes();
+
+create or replace function public.get_table_sizes()
+returns table(table_name text, size_bytes bigint, row_count bigint)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  r record;
+  cnt bigint;
+begin
+  for r in
+    select c.relname::text as tname, pg_total_relation_size(c.oid) as sz
+    from pg_class c
+    join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'public' and c.relkind = 'r'
+    order by pg_total_relation_size(c.oid) desc
+  loop
+    execute format('select count(*) from public.%I', r.tname) into cnt;
+    table_name := r.tname;
+    size_bytes := r.sz;
+    row_count := cnt;
+    return next;
+  end loop;
+end;
+$$;
+
+-- =====================================================================
+-- 8. KOLOM CATATAN ADMIN di laporan harian (feedback admin ke pegawai)
+-- =====================================================================
+alter table public.daily_reports
+  add column if not exists admin_note text;
+
+-- =====================================================================
 -- SELESAI. Verifikasi cepat:
 -- select id, username, email, role, full_name from public.users;
+-- select public.get_database_size();
+-- select * from public.get_table_sizes();
 -- =====================================================================

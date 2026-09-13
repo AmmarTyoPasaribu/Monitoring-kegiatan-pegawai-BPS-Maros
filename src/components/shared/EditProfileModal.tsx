@@ -8,6 +8,7 @@ import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { Button } from "@/components/ui/Button";
 import { Input, Label } from "@/components/ui/Field";
 import { Avatar } from "@/components/ui/Avatar";
+import { compressImage } from "@/lib/compressImage";
 
 interface EditProfileModalProps {
   open: boolean;
@@ -52,15 +53,21 @@ export function EditProfileModal({
     (password === "" || password.length >= 6) &&
     (!showProfileFields || fullName.trim().length >= 1);
 
-  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
+    e.target.value = "";
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error("Ukuran foto maksimal 2MB");
+    if (file.size > 15 * 1024 * 1024) {
+      toast.error("Ukuran foto maksimal 15MB");
       return;
     }
-    setPhotoFile(file);
-    setPreview(URL.createObjectURL(file));
+    const compressed = await compressImage(file);
+    if (compressed.size > 2 * 1024 * 1024) {
+      toast.error("Foto masih terlalu besar setelah dikompres, coba foto lain");
+      return;
+    }
+    setPhotoFile(compressed);
+    setPreview(URL.createObjectURL(compressed));
   }
 
   async function handleConfirmSave() {

@@ -34,6 +34,10 @@ export const employeeUpdateSchema = z.object({
   division: z.string().optional(),
 });
 
+export const adminNoteSchema = z.object({
+  note: z.string().max(2000, "Catatan maksimal 2000 karakter").optional().default(""),
+});
+
 export const selfAccountUpdateSchema = z.object({
   username: z
     .string()

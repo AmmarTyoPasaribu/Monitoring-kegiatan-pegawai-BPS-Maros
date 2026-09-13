@@ -24,6 +24,7 @@ export interface DailyReport {
   kendala: string | null;
   solusi: string | null;
   keterangan: string | null;
+  admin_note: string | null;
   created_at: string;
   updated_at: string;
 }

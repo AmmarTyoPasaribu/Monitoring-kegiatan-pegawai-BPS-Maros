@@ -1,15 +1,23 @@
 import Link from "next/link";
-import { ClipboardCheck, ClipboardEdit, CalendarDays, ChevronRight } from "lucide-react";
+import { ClipboardCheck, ClipboardEdit, CalendarDays, ChevronRight, TrendingUp } from "lucide-react";
 import { getSession } from "@/lib/session";
 import { supabaseAdmin } from "@/lib/supabase";
 import { Badge } from "@/components/ui/Badge";
 import { LogoutButton } from "@/components/shared/LogoutButton";
 import { ProfileAvatarButton } from "@/components/pegawai/ProfileAvatarButton";
-import { formatIndonesianDate, todayWitaDateString } from "@/lib/time";
+import {
+  formatIndonesianDate,
+  getWitaNowParts,
+  monthNameId,
+  todayWitaDateString,
+  toDateString,
+} from "@/lib/time";
 
 export default async function BerandaPage() {
   const session = await getSession();
   const today = todayWitaDateString();
+  const { year, month, day } = getWitaNowParts();
+  const monthStart = toDateString(year, month, 1);
 
   const { data: user } = await supabaseAdmin
     .from("users")
@@ -25,6 +33,20 @@ export default async function BerandaPage() {
     .maybeSingle();
 
   const filled = Boolean(report);
+
+  const { data: monthReports } = await supabaseAdmin
+    .from("daily_reports")
+    .select("progress")
+    .eq("user_id", session!.id)
+    .gte("report_date", monthStart)
+    .lte("report_date", today);
+
+  const filledDaysThisMonth = monthReports?.length || 0;
+  const avgProgressThisMonth = filledDaysThisMonth
+    ? Math.round(
+        (monthReports || []).reduce((sum, r) => sum + (r.progress ?? 0), 0) / filledDaysThisMonth
+      )
+    : 0;
 
   return (
     <div className="space-y-4">
@@ -100,6 +122,34 @@ export default async function BerandaPage() {
             {filled ? "Lihat Laporan Hari Ini" : "Isi Laporan Hari Ini"}
             <ChevronRight className="size-4" />
           </Link>
+        </div>
+      </div>
+
+      <div className="card-surface p-5">
+        <div className="mb-4 flex items-center gap-3">
+          <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-orange/10 text-brand-orange">
+            <TrendingUp className="size-5" />
+          </div>
+          <div>
+            <p className="font-heading font-bold text-slate-900">Progres Bulan Ini</p>
+            <p className="text-sm text-slate-500">
+              {monthNameId(month)} {year}
+            </p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-xl bg-surface px-4 py-3 text-center">
+            <p className="font-heading text-2xl font-extrabold text-slate-900">
+              {filledDaysThisMonth}/{day}
+            </p>
+            <p className="text-xs text-slate-500">Hari terisi</p>
+          </div>
+          <div className="rounded-xl bg-surface px-4 py-3 text-center">
+            <p className="font-heading text-2xl font-extrabold text-slate-900">
+              {avgProgressThisMonth}%
+            </p>
+            <p className="text-xs text-slate-500">Rata-rata progress</p>
+          </div>
         </div>
       </div>
     </div>

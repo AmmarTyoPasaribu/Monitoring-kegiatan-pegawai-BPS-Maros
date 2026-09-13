@@ -2,33 +2,43 @@
 
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Pencil, Plus, Search, Trash2, UserRound } from "lucide-react";
+import { Filter, Pencil, Plus, Search, Trash2, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Avatar } from "@/components/ui/Avatar";
-import { Input } from "@/components/ui/Field";
+import { Input, Select } from "@/components/ui/Field";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { EmployeeFormModal, type Employee } from "@/components/admin/EmployeeFormModal";
+
+const ALL_DIVISIONS = "__all__";
 
 export function KelolaPegawaiClient({ initialEmployees }: { initialEmployees: Employee[] }) {
   const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
   const [query, setQuery] = useState("");
+  const [divisionFilter, setDivisionFilter] = useState<string>(ALL_DIVISIONS);
   const [formOpen, setFormOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [formKey, setFormKey] = useState(0);
   const [deleteTarget, setDeleteTarget] = useState<Employee | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  const divisions = useMemo(() => {
+    const set = new Set(employees.map((e) => e.division).filter((d): d is string => Boolean(d)));
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [employees]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return employees;
-    return employees.filter(
-      (e) =>
+    return employees.filter((e) => {
+      const matchesDivision = divisionFilter === ALL_DIVISIONS || e.division === divisionFilter;
+      const matchesQuery =
+        !q ||
         e.full_name.toLowerCase().includes(q) ||
         e.username.toLowerCase().includes(q) ||
         e.email.toLowerCase().includes(q) ||
-        (e.division || "").toLowerCase().includes(q)
-    );
-  }, [employees, query]);
+        (e.division || "").toLowerCase().includes(q);
+      return matchesDivision && matchesQuery;
+    });
+  }, [employees, query, divisionFilter]);
 
   function openCreate() {
     setEditingEmployee(null);
@@ -75,14 +85,31 @@ export function KelolaPegawaiClient({ initialEmployees }: { initialEmployees: Em
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative sm:w-72">
-          <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-          <Input
-            className="pl-10"
-            placeholder="Cari nama, username, email, divisi..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="relative sm:w-64">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+            <Input
+              className="pl-10"
+              placeholder="Cari nama, username, email..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Filter className="size-4 shrink-0 text-slate-400" />
+            <Select
+              value={divisionFilter}
+              onChange={(e) => setDivisionFilter(e.target.value)}
+              className="w-auto min-w-[180px]"
+            >
+              <option value={ALL_DIVISIONS}>Semua Bagian</option>
+              {divisions.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </Select>
+          </div>
         </div>
         <Button onClick={openCreate} className="shrink-0">
           <Plus className="size-4" /> Tambah Pegawai
@@ -98,7 +125,7 @@ export function KelolaPegawaiClient({ initialEmployees }: { initialEmployees: Em
         <div className="card-surface flex flex-col items-center justify-center py-16 text-center">
           <Search className="size-10 text-slate-300" />
           <p className="mt-3 text-sm font-medium text-slate-500">
-            Tidak ada pegawai yang cocok dengan &quot;{query}&quot;
+            Tidak ada pegawai yang cocok dengan pencarian/filter ini
           </p>
         </div>
       ) : (
