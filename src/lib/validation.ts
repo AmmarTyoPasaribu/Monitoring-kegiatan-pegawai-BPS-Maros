@@ -1,16 +1,35 @@
 import { z } from "zod";
 
-export const dailyReportSchema = z.object({
-  report_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format tanggal tidak valid"),
-  rencana_kinerja: z.string().min(1, "Rencana Kinerja wajib diisi"),
-  kegiatan: z.string().min(1, "Kegiatan wajib diisi"),
-  target: z.string().optional().default(""),
-  realisasi: z.string().optional().default(""),
-  progress: z.coerce.number().int().min(0).max(100).optional().default(0),
-  kendala: z.string().optional().default(""),
-  solusi: z.string().optional().default(""),
-  keterangan: z.string().optional().default(""),
+export const dailyReportActivitySchema = z.object({
+  jam: z.string().optional().default(""),
+  uraian_tugas: z.string().optional().default(""),
+  output_target: z.string().optional().default(""),
+  status: z.string().optional().default(""),
+  link_dokumentasi: z
+    .string()
+    .optional()
+    .default("")
+    .refine((v) => v === "" || /^https?:\/\/\S+$/i.test(v), {
+      message: "Link dokumentasi harus berupa URL yang valid (diawali http:// atau https://)",
+    }),
 });
+
+export const dailyReportSchema = z
+  .object({
+    report_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format tanggal tidak valid"),
+    capaian_kuantitas: z.string().optional().default(""),
+    capaian_kualitas: z.string().optional().default(""),
+    capaian_waktu: z.string().optional().default(""),
+    kendala: z.string().optional().default(""),
+    solusi: z.string().optional().default(""),
+    rencana_besok: z.array(z.string()).optional().default([]),
+    keterangan: z.string().optional().default(""),
+    activities: z.array(dailyReportActivitySchema).optional().default([]),
+  })
+  .refine((data) => data.activities.some((a) => a.uraian_tugas.trim().length > 0), {
+    message: "Minimal satu baris Uraian Tugas pada Uraian Kegiatan Hari Ini wajib diisi",
+    path: ["activities"],
+  });
 
 export const employeeCreateSchema = z.object({
   full_name: z.string().min(1, "Nama wajib diisi"),

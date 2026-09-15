@@ -12,32 +12,41 @@ export interface AppUser {
   updated_at: string;
 }
 
+export interface DailyReportActivity {
+  id?: string;
+  jam: string;
+  uraian_tugas: string;
+  output_target: string;
+  status: string;
+  link_dokumentasi: string;
+}
+
 export interface DailyReport {
   id: string;
   user_id: string;
   report_date: string; // YYYY-MM-DD
-  rencana_kinerja: string | null;
-  kegiatan: string | null;
-  target: string | null;
-  realisasi: string | null;
-  progress: number | null;
+  capaian_kuantitas: string | null;
+  capaian_kualitas: string | null;
+  capaian_waktu: string | null;
   kendala: string | null;
   solusi: string | null;
+  rencana_besok: string[] | null;
   keterangan: string | null;
   admin_note: string | null;
+  activities: DailyReportActivity[];
   created_at: string;
   updated_at: string;
 }
 
 export interface DailyReportInput {
-  rencana_kinerja: string;
-  kegiatan: string;
-  target: string;
-  realisasi: string;
-  progress: number;
+  capaian_kuantitas: string;
+  capaian_kualitas: string;
+  capaian_waktu: string;
   kendala: string;
   solusi: string;
+  rencana_besok: string[];
   keterangan: string;
+  activities: DailyReportActivity[];
 }
 
 export interface SessionPayload {

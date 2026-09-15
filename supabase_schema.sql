@@ -172,6 +172,47 @@ alter table public.daily_reports
   add column if not exists admin_note text;
 
 -- =====================================================================
+-- 9. ROMBAK FORM LAPORAN HARIAN (sesuai format baru dari Kepala BPS)
+-- Kolom lama (rencana_kinerja, kegiatan, target, realisasi, progress)
+-- diganti struktur baru: capaian kinerja (kuantitas/kualitas/waktu),
+-- rencana besok (daftar poin), dan tabel uraian kegiatan terpisah
+-- (satu laporan harian bisa punya banyak baris kegiatan).
+-- Catatan: jalankan bagian ini HANYA setelah data daily_reports lama
+-- sudah dikosongkan, karena kolom lama langsung di-drop (data hilang).
+-- =====================================================================
+alter table public.daily_reports
+  drop column if exists rencana_kinerja,
+  drop column if exists kegiatan,
+  drop column if exists target,
+  drop column if exists realisasi,
+  drop column if exists progress,
+  add column if not exists capaian_kuantitas text not null default '',
+  add column if not exists capaian_kualitas text not null default '',
+  add column if not exists capaian_waktu text not null default '',
+  add column if not exists rencana_besok text[] not null default '{}';
+
+create table if not exists public.daily_report_activities (
+  id               uuid primary key default gen_random_uuid(),
+  report_id        uuid not null references public.daily_reports(id) on delete cascade,
+  urutan           integer not null default 0,
+  jam              text not null default '',
+  uraian_tugas     text not null default '',
+  output_target    text not null default '',
+  status           text not null default '',
+  link_dokumentasi text not null default '',
+  created_at       timestamptz not null default now()
+);
+
+comment on table public.daily_report_activities is 'Baris-baris tabel "Uraian Kegiatan Hari Ini" milik satu daily_reports. link_dokumentasi diisi manual oleh pegawai (link Google Drive miliknya sendiri, di-share sebagai "Anyone with the link").';
+
+create index if not exists idx_daily_report_activities_report_id
+  on public.daily_report_activities (report_id);
+
+alter table public.daily_report_activities enable row level security;
+-- Tidak ada policy dibuat -> default deny all untuk role anon/authenticated,
+-- sama seperti tabel lain. Akses hanya lewat backend (service role key).
+
+-- =====================================================================
 -- SELESAI. Verifikasi cepat:
 -- select id, username, email, role, full_name from public.users;
 -- select public.get_database_size();

@@ -38,13 +38,16 @@ export default async function AdminRingkasanPage() {
 
   const { data: monthReports } = await supabaseAdmin
     .from("daily_reports")
-    .select("progress")
+    .select("id, activities:daily_report_activities(count)")
     .gte("report_date", monthStart)
     .lte("report_date", today);
 
-  const progressValues = (monthReports || []).map((r) => r.progress ?? 0);
-  const avgProgress = progressValues.length
-    ? Math.round(progressValues.reduce((sum, p) => sum + p, 0) / progressValues.length)
+  const totalActivities = (monthReports || []).reduce(
+    (sum, r) => sum + Number(r.activities?.[0]?.count ?? 0),
+    0
+  );
+  const avgActivitiesPerDay = monthReports?.length
+    ? Math.round((totalActivities / monthReports.length) * 10) / 10
     : 0;
 
   return (
@@ -67,8 +70,8 @@ export default async function AdminRingkasanPage() {
         <StatCard
           icon={TrendingUp}
           tone="orange"
-          label={`Rata-rata Progress ${monthNameId(month)}`}
-          value={`${avgProgress}%`}
+          label={`Rata-rata Kegiatan/Hari ${monthNameId(month)}`}
+          value={`${avgActivitiesPerDay}`}
         />
       </div>
 

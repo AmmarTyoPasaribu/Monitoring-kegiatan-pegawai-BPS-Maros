@@ -2,46 +2,49 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { MessageSquare, Pencil } from "lucide-react";
+import { ExternalLink, ListChecks, MessageSquare, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { Input, Label, Textarea } from "@/components/ui/Field";
+import { ContohPengisianModal } from "@/components/pegawai/ContohPengisianModal";
 import { formatIndonesianDate } from "@/lib/time";
-import type { DailyReport, DailyReportInput } from "@/types";
+import type { DailyReport, DailyReportActivity, DailyReportInput } from "@/types";
+
+const EMPTY_ACTIVITY: DailyReportActivity = {
+  jam: "",
+  uraian_tugas: "",
+  output_target: "",
+  status: "",
+  link_dokumentasi: "",
+};
 
 const EMPTY_FORM: DailyReportInput = {
-  rencana_kinerja: "",
-  kegiatan: "",
-  target: "",
-  realisasi: "",
-  progress: 0,
+  capaian_kuantitas: "",
+  capaian_kualitas: "",
+  capaian_waktu: "",
   kendala: "",
   solusi: "",
+  rencana_besok: [""],
   keterangan: "",
+  activities: [{ ...EMPTY_ACTIVITY }],
 };
 
 function reportToForm(r: DailyReport): DailyReportInput {
   return {
-    rencana_kinerja: r.rencana_kinerja || "",
-    kegiatan: r.kegiatan || "",
-    target: r.target || "",
-    realisasi: r.realisasi || "",
-    progress: r.progress ?? 0,
+    capaian_kuantitas: r.capaian_kuantitas || "",
+    capaian_kualitas: r.capaian_kualitas || "",
+    capaian_waktu: r.capaian_waktu || "",
     kendala: r.kendala || "",
     solusi: r.solusi || "",
+    rencana_besok: r.rencana_besok?.length ? r.rencana_besok : [""],
     keterangan: r.keterangan || "",
+    activities: r.activities?.length ? r.activities.map((a) => ({ ...a })) : [{ ...EMPTY_ACTIVITY }],
   };
 }
 
-const FIELD_LABELS: { key: keyof DailyReportInput; label: string; required?: boolean }[] = [
-  { key: "rencana_kinerja", label: "Rencana Kinerja", required: true },
-  { key: "kegiatan", label: "Kegiatan", required: true },
-  { key: "target", label: "Target" },
-  { key: "realisasi", label: "Realisasi" },
-  { key: "kendala", label: "Kendala" },
-  { key: "solusi", label: "Solusi" },
-  { key: "keterangan", label: "Keterangan" },
-];
+function isValidLink(v: string) {
+  return v.trim() === "" || /^https?:\/\/\S+$/i.test(v.trim());
+}
 
 // Parent harus memberi `key={date}` supaya komponen ini remount tiap ganti tanggal,
 // otomatis mereset form/mode edit tanpa perlu effect.
@@ -63,6 +66,40 @@ export function ReportPanel({
 
   function updateField<K extends keyof DailyReportInput>(key: K, value: DailyReportInput[K]) {
     setForm((f) => ({ ...f, [key]: value }));
+  }
+
+  function updateActivity<K extends keyof DailyReportActivity>(
+    idx: number,
+    key: K,
+    value: DailyReportActivity[K]
+  ) {
+    setForm((f) => ({
+      ...f,
+      activities: f.activities.map((a, i) => (i === idx ? { ...a, [key]: value } : a)),
+    }));
+  }
+
+  function addActivity() {
+    setForm((f) => ({ ...f, activities: [...f.activities, { ...EMPTY_ACTIVITY }] }));
+  }
+
+  function removeActivity(idx: number) {
+    setForm((f) => ({ ...f, activities: f.activities.filter((_, i) => i !== idx) }));
+  }
+
+  function updateRencana(idx: number, value: string) {
+    setForm((f) => ({
+      ...f,
+      rencana_besok: f.rencana_besok.map((r, i) => (i === idx ? value : r)),
+    }));
+  }
+
+  function addRencana() {
+    setForm((f) => ({ ...f, rencana_besok: [...f.rencana_besok, ""] }));
+  }
+
+  function removeRencana(idx: number) {
+    setForm((f) => ({ ...f, rencana_besok: f.rencana_besok.filter((_, i) => i !== idx) }));
   }
 
   async function handleConfirmSave() {
@@ -90,105 +127,390 @@ export function ReportPanel({
   }
 
   function handleSubmitClick() {
-    if (!form.rencana_kinerja.trim() || !form.kegiatan.trim()) {
-      toast.error("Rencana Kinerja atau Kegiatan belum terisi");
+    if (!form.activities.some((a) => a.uraian_tugas.trim())) {
+      toast.error("Minimal satu baris Uraian Tugas pada bagian A belum diisi");
+      return;
+    }
+    const invalidIdx = form.activities.findIndex((a) => !isValidLink(a.link_dokumentasi));
+    if (invalidIdx !== -1) {
+      toast.error(
+        `Link dokumentasi baris ke-${invalidIdx + 1} tidak valid (harus diawali http:// atau https://)`
+      );
       return;
     }
     setConfirmOpen(true);
   }
+
+  const filledActivities = existing?.activities?.length ? existing.activities : [];
+  const filledRencana = existing?.rencana_besok?.filter((r) => r.trim()) || [];
 
   return (
     <div className="card-surface p-5">
       <div className="mb-4 flex items-center justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-wide text-brand-blue">
-            {editing ? "Laporan Harian" : "Laporan Harian"}
+            Laporan Harian
           </p>
           <p className="font-heading text-base font-bold text-slate-900">
             {formatIndonesianDate(date)}
           </p>
         </div>
-        {existing && !editing && (
-          <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
-            <Pencil className="size-3.5" /> Edit
-          </Button>
-        )}
+        <div className="flex shrink-0 items-center gap-2">
+          <ContohPengisianModal />
+          {existing && !editing && (
+            <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
+              <Pencil className="size-3.5" /> Edit
+            </Button>
+          )}
+        </div>
       </div>
 
       {!editing && existing ? (
-        <div className="space-y-4">
+        <div className="space-y-5">
           {existing.admin_note && (
             <div className="rounded-xl border border-brand-blue/20 bg-brand-blue/5 p-3.5">
               <div className="mb-1 flex items-center gap-1.5 text-brand-blue-dark">
                 <MessageSquare className="size-3.5" />
-                <p className="text-xs font-bold">Catatan dari Admin</p>
+                <p className="text-xs font-bold">Catatan dari Kepala BPS</p>
               </div>
               <p className="whitespace-pre-wrap break-words text-sm text-slate-700">
                 {existing.admin_note}
               </p>
             </div>
           )}
-          {FIELD_LABELS.map(({ key, label }) => (
-            <div key={key}>
-              <p className="text-xs font-bold text-brand-blue-dark">{label}</p>
-              <p className="whitespace-pre-wrap break-words text-sm text-slate-700">
-                {(existing[key] as string) || "-"}
+
+          <div>
+            <p className="mb-2 text-xs font-bold uppercase tracking-wide text-brand-blue-dark">
+              A. Uraian Kegiatan Hari Ini
+            </p>
+            {filledActivities.length === 0 ? (
+              <p className="text-sm text-slate-400">Belum ada baris kegiatan</p>
+            ) : (
+              <>
+                {/* Tabel — desktop/tablet */}
+                <div className="hidden overflow-hidden rounded-xl border border-slate-200 sm:block">
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[560px] text-left text-sm">
+                      <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+                        <tr>
+                          <th className="px-3 py-2 font-semibold">Jam</th>
+                          <th className="px-3 py-2 font-semibold">Uraian Tugas</th>
+                          <th className="px-3 py-2 font-semibold">Output/Target</th>
+                          <th className="px-3 py-2 font-semibold">Status</th>
+                          <th className="px-3 py-2 font-semibold">Dok.</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {filledActivities.map((a, i) => (
+                          <tr key={a.id || i}>
+                            <td className="whitespace-pre-wrap break-words px-3 py-2 align-top text-slate-600">
+                              {a.jam || "-"}
+                            </td>
+                            <td className="whitespace-pre-wrap break-words px-3 py-2 align-top text-slate-700">
+                              {a.uraian_tugas || "-"}
+                            </td>
+                            <td className="whitespace-pre-wrap break-words px-3 py-2 align-top text-slate-600">
+                              {a.output_target || "-"}
+                            </td>
+                            <td className="whitespace-pre-wrap break-words px-3 py-2 align-top text-slate-600">
+                              {a.status || "-"}
+                            </td>
+                            <td className="px-3 py-2 align-top">
+                              {a.link_dokumentasi ? (
+                                <a
+                                  href={a.link_dokumentasi}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-brand-blue hover:underline"
+                                >
+                                  <ExternalLink className="size-3.5" /> Lihat
+                                </a>
+                              ) : (
+                                <span className="text-slate-300">-</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Kartu — mobile */}
+                <div className="space-y-2.5 sm:hidden">
+                  {filledActivities.map((a, i) => (
+                    <div key={a.id || i} className="rounded-xl border border-slate-200 p-3 text-sm">
+                      <p className="text-xs font-semibold text-brand-blue-dark">{a.jam || "-"}</p>
+                      <p className="mt-1 whitespace-pre-wrap break-words font-medium text-slate-800">
+                        {a.uraian_tugas || "-"}
+                      </p>
+                      {a.output_target && (
+                        <p className="mt-1 whitespace-pre-wrap break-words text-xs text-slate-500">
+                          Target: {a.output_target}
+                        </p>
+                      )}
+                      {a.status && (
+                        <p className="mt-1 whitespace-pre-wrap break-words text-xs text-slate-500">
+                          Status: {a.status}
+                        </p>
+                      )}
+                      {a.link_dokumentasi && (
+                        <a
+                          href={a.link_dokumentasi}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-1.5 inline-flex items-center gap-1 text-xs text-brand-blue hover:underline"
+                        >
+                          <ExternalLink className="size-3.5" /> Lihat dokumentasi
+                        </a>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+
+          <div>
+            <p className="mb-2 text-xs font-bold uppercase tracking-wide text-brand-blue-dark">
+              B. Capaian Kinerja Harian
+            </p>
+            <div className="space-y-2 text-sm">
+              <p>
+                <span className="font-semibold text-slate-700">Kuantitas: </span>
+                <span className="whitespace-pre-wrap break-words text-slate-700">
+                  {existing.capaian_kuantitas || "-"}
+                </span>
+              </p>
+              <p>
+                <span className="font-semibold text-slate-700">Kualitas: </span>
+                <span className="whitespace-pre-wrap break-words text-slate-700">
+                  {existing.capaian_kualitas || "-"}
+                </span>
+              </p>
+              <p>
+                <span className="font-semibold text-slate-700">Waktu: </span>
+                <span className="whitespace-pre-wrap break-words text-slate-700">
+                  {existing.capaian_waktu || "-"}
+                </span>
               </p>
             </div>
-          ))}
+          </div>
+
           <div>
-            <p className="text-xs font-bold text-brand-blue-dark">Progress</p>
-            <div className="mt-1 flex items-center gap-2">
-              <div className="h-2 w-full max-w-40 overflow-hidden rounded-full bg-slate-100">
-                <div
-                  className="h-full rounded-full bg-brand-blue"
-                  style={{ width: `${existing.progress ?? 0}%` }}
-                />
-              </div>
-              <span className="text-sm font-semibold text-slate-700">
-                {existing.progress ?? 0}%
-              </span>
+            <p className="mb-2 text-xs font-bold uppercase tracking-wide text-brand-blue-dark">
+              C. Kendala & Tindak Lanjut
+            </p>
+            <div className="space-y-2 text-sm">
+              <p>
+                <span className="font-semibold text-slate-700">Kendala: </span>
+                <span className="whitespace-pre-wrap break-words text-slate-700">
+                  {existing.kendala || "-"}
+                </span>
+              </p>
+              <p>
+                <span className="font-semibold text-slate-700">Solusi: </span>
+                <span className="whitespace-pre-wrap break-words text-slate-700">
+                  {existing.solusi || "-"}
+                </span>
+              </p>
             </div>
+          </div>
+
+          <div>
+            <p className="mb-2 text-xs font-bold uppercase tracking-wide text-brand-blue-dark">
+              D. Rencana Kegiatan Besok
+            </p>
+            {filledRencana.length === 0 ? (
+              <p className="text-sm text-slate-400">-</p>
+            ) : (
+              <ol className="list-decimal space-y-1 pl-5 text-sm text-slate-700">
+                {filledRencana.map((r, i) => (
+                  <li key={i} className="whitespace-pre-wrap break-words">
+                    {r}
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
+
+          <div>
+            <p className="mb-1 text-xs font-bold uppercase tracking-wide text-brand-blue-dark">
+              E. Keterangan
+            </p>
+            <p className="whitespace-pre-wrap break-words text-sm text-slate-700">
+              {existing.keterangan || "-"}
+            </p>
           </div>
         </div>
       ) : (
         <div className="space-y-4">
-          {FIELD_LABELS.slice(0, 4).map(({ key, label, required }) => (
-            <div key={key}>
-              <Label required={required}>{label}</Label>
-              <Textarea
-                value={form[key]}
-                onChange={(e) => updateField(key, e.target.value)}
-              />
+          <div className="rounded-2xl border border-slate-200 bg-slate-100 p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-brand-blue-dark">
+                <ListChecks className="size-3.5" /> A. Uraian Kegiatan Hari Ini
+              </p>
+              <Button type="button" size="sm" variant="primary" onClick={addActivity}>
+                <Plus className="size-3.5" /> Tambah Baris
+              </Button>
             </div>
-          ))}
-
-          <div>
-            <Label>
-              Progress (%){" "}
-              <span className="font-normal text-slate-400">(0-100)</span>
-            </Label>
-            <Input
-              type="number"
-              min={0}
-              max={100}
-              placeholder="0-100"
-              value={form.progress === 0 ? "" : form.progress}
-              onChange={(e) =>
-                updateField("progress", e.target.value === "" ? 0 : Number(e.target.value))
-              }
-            />
+            <div className="space-y-3">
+              {form.activities.map((a, idx) => (
+                <div key={idx} className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-sm">
+                  <div className="mb-3 flex items-center justify-between">
+                    <span className="rounded-full bg-brand-blue/10 px-2.5 py-1 text-xs font-bold text-brand-blue-dark">
+                      Kegiatan {idx + 1}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeActivity(idx)}
+                      className="flex size-8 items-center justify-center rounded-lg bg-red-100 text-red-600 transition-colors hover:bg-red-600 hover:text-white"
+                      aria-label={`Hapus baris ${idx + 1}`}
+                    >
+                      <Trash2 className="size-4" />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>Jam</Label>
+                      <Input
+                        placeholder="08.00-08.15"
+                        value={a.jam}
+                        onChange={(e) => updateActivity(idx, "jam", e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label>Status</Label>
+                      <Input
+                        placeholder="Selesai / 80%"
+                        value={a.status}
+                        onChange={(e) => updateActivity(idx, "status", e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="mt-3">
+                    <Label>Uraian Tugas</Label>
+                    <Textarea
+                      value={a.uraian_tugas}
+                      onChange={(e) => updateActivity(idx, "uraian_tugas", e.target.value)}
+                    />
+                  </div>
+                  <div className="mt-3">
+                    <Label>Output/Target Harian</Label>
+                    <Textarea
+                      value={a.output_target}
+                      onChange={(e) => updateActivity(idx, "output_target", e.target.value)}
+                    />
+                  </div>
+                  <div className="mt-3">
+                    <Label>Link Dokumentasi (Google Drive)</Label>
+                    <Input
+                      placeholder="https://drive.google.com/... (opsional)"
+                      value={a.link_dokumentasi}
+                      onChange={(e) => updateActivity(idx, "link_dokumentasi", e.target.value)}
+                    />
+                  </div>
+                </div>
+              ))}
+              {form.activities.length === 0 && (
+                <p className="text-sm text-slate-400">
+                  Belum ada baris kegiatan, tekan &quot;Tambah Baris&quot;.
+                </p>
+              )}
+            </div>
           </div>
 
-          {FIELD_LABELS.slice(4).map(({ key, label, required }) => (
-            <div key={key}>
-              <Label required={required}>{label}</Label>
-              <Textarea
-                value={form[key]}
-                onChange={(e) => updateField(key, e.target.value)}
-              />
+          <div className="rounded-2xl border border-slate-200 bg-slate-100 p-4">
+            <p className="mb-3 text-xs font-bold uppercase tracking-wide text-brand-blue-dark">
+              B. Capaian Kinerja Harian
+            </p>
+            <div className="space-y-3">
+              <div>
+                <Label>Kuantitas</Label>
+                <Textarea
+                  value={form.capaian_kuantitas}
+                  onChange={(e) => updateField("capaian_kuantitas", e.target.value)}
+                />
+              </div>
+              <div>
+                <Label>Kualitas</Label>
+                <Textarea
+                  value={form.capaian_kualitas}
+                  onChange={(e) => updateField("capaian_kualitas", e.target.value)}
+                />
+              </div>
+              <div>
+                <Label>Waktu</Label>
+                <Textarea
+                  value={form.capaian_waktu}
+                  onChange={(e) => updateField("capaian_waktu", e.target.value)}
+                />
+              </div>
             </div>
-          ))}
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-slate-100 p-4">
+            <p className="mb-3 text-xs font-bold uppercase tracking-wide text-brand-blue-dark">
+              C. Kendala & Tindak Lanjut
+            </p>
+            <div className="space-y-3">
+              <div>
+                <Label>Kendala</Label>
+                <Textarea
+                  value={form.kendala}
+                  onChange={(e) => updateField("kendala", e.target.value)}
+                />
+              </div>
+              <div>
+                <Label>Solusi</Label>
+                <Textarea
+                  value={form.solusi}
+                  onChange={(e) => updateField("solusi", e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-slate-100 p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-xs font-bold uppercase tracking-wide text-brand-blue-dark">
+                D. Rencana Kegiatan Besok
+              </p>
+              <Button type="button" size="sm" variant="primary" onClick={addRencana}>
+                <Plus className="size-3.5" /> Tambah Poin
+              </Button>
+            </div>
+            <div className="space-y-2">
+              {form.rencana_besok.map((r, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <span className="w-5 shrink-0 text-sm font-semibold text-slate-400">
+                    {idx + 1}.
+                  </span>
+                  <Input
+                    className="flex-1 bg-white"
+                    value={r}
+                    onChange={(e) => updateRencana(idx, e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeRencana(idx)}
+                    className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-red-100 text-red-600 transition-colors hover:bg-red-600 hover:text-white"
+                    aria-label={`Hapus poin ${idx + 1}`}
+                  >
+                    <Trash2 className="size-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-slate-100 p-4">
+            <Label>E. Keterangan</Label>
+            <Textarea
+              value={form.keterangan}
+              onChange={(e) => updateField("keterangan", e.target.value)}
+            />
+          </div>
 
           <div className="flex justify-end gap-3 pt-2">
             {existing && (

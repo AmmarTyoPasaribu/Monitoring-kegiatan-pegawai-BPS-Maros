@@ -36,16 +36,18 @@ export default async function BerandaPage() {
 
   const { data: monthReports } = await supabaseAdmin
     .from("daily_reports")
-    .select("progress")
+    .select("id, activities:daily_report_activities(count)")
     .eq("user_id", session!.id)
     .gte("report_date", monthStart)
     .lte("report_date", today);
 
   const filledDaysThisMonth = monthReports?.length || 0;
-  const avgProgressThisMonth = filledDaysThisMonth
-    ? Math.round(
-        (monthReports || []).reduce((sum, r) => sum + (r.progress ?? 0), 0) / filledDaysThisMonth
-      )
+  const totalActivitiesThisMonth = (monthReports || []).reduce(
+    (sum, r) => sum + Number(r.activities?.[0]?.count ?? 0),
+    0
+  );
+  const avgActivitiesThisMonth = filledDaysThisMonth
+    ? Math.round((totalActivitiesThisMonth / filledDaysThisMonth) * 10) / 10
     : 0;
 
   return (
@@ -146,9 +148,9 @@ export default async function BerandaPage() {
           </div>
           <div className="rounded-xl bg-surface px-4 py-3 text-center">
             <p className="font-heading text-2xl font-extrabold text-slate-900">
-              {avgProgressThisMonth}%
+              {avgActivitiesThisMonth}
             </p>
-            <p className="text-xs text-slate-500">Rata-rata progress</p>
+            <p className="text-xs text-slate-500">Rata-rata kegiatan/hari</p>
           </div>
         </div>
       </div>

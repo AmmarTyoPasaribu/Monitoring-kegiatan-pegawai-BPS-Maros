@@ -7,6 +7,8 @@ import { Avatar } from "@/components/ui/Avatar";
 import { Combobox } from "@/components/ui/Combobox";
 import { Button } from "@/components/ui/Button";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { Label } from "@/components/ui/Field";
 import { MonthCalendar, type DateStatus } from "@/components/pegawai/MonthCalendar";
 import { AdminReportDetail } from "@/components/admin/AdminReportDetail";
 import { AdminNoteEditor } from "@/components/admin/AdminNoteEditor";
@@ -181,33 +183,57 @@ export function KegiatanPegawaiClient({
 
   return (
     <div className="space-y-4">
-      <div className="card-surface flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
-          {selectedEmployee && (
-            <Avatar src={selectedEmployee.photo_url} name={selectedEmployee.full_name} className="size-11 shrink-0" />
-          )}
-          <Combobox
-            className="min-w-[240px]"
-            options={employeeOptions}
-            value={employeeId}
-            searchPlaceholder="Ketik nama pegawai..."
-            onChange={(id) => {
-              setEmployeeId(id);
-              setSelectedDate(todayWitaDateString());
-            }}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-stretch">
+        <div className="flex flex-col gap-4">
+          <PageHeader
+            eyebrow="Pemantauan"
+            title="Kegiatan Pegawai"
+            description="Pantau laporan kegiatan harian tiap pegawai per tanggal, dan ekspor rekap bulanan."
           />
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button onClick={() => setExportAllOpen(true)} variant="outline">
-            <Users className="size-4" /> Export Semua Pegawai
-          </Button>
-          <Button onClick={() => setExportOpen(true)} variant="success">
-            <Download className="size-4" /> Export to Excel
-          </Button>
-        </div>
-      </div>
+          <div className="card-surface flex flex-1 flex-col gap-5 p-5">
+            {selectedEmployee && (
+              <div className="flex items-center gap-3.5">
+                <Avatar
+                  src={selectedEmployee.photo_url}
+                  name={selectedEmployee.full_name}
+                  className="size-14 shrink-0 text-base"
+                />
+                <div className="min-w-0">
+                  <p className="truncate font-heading text-lg font-bold text-slate-900">
+                    {selectedEmployee.full_name}
+                  </p>
+                  <p className="truncate text-sm text-slate-500">
+                    {selectedEmployee.division || "Tanpa divisi"}
+                  </p>
+                </div>
+              </div>
+            )}
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <div>
+              <Label>Ganti Pegawai</Label>
+              <Combobox
+                className="w-full"
+                options={employeeOptions}
+                value={employeeId}
+                searchPlaceholder="Ketik nama pegawai..."
+                onChange={(id) => {
+                  setEmployeeId(id);
+                  setSelectedDate(todayWitaDateString());
+                }}
+              />
+            </div>
+
+            <div className="mt-auto flex flex-wrap gap-2 border-t border-slate-100 pt-4">
+              <Button onClick={() => setExportAllOpen(true)} variant="outline">
+                <Users className="size-4" /> Export Semua Pegawai
+              </Button>
+              <Button onClick={() => setExportOpen(true)} variant="success">
+                <Download className="size-4" /> Export to Excel
+              </Button>
+            </div>
+          </div>
+        </div>
+
         <MonthCalendar
           year={year}
           month={month}
@@ -218,33 +244,33 @@ export function KegiatanPegawaiClient({
           onNextMonth={goNextMonth}
           canGoNext={canGoNext}
         />
-
-        {loading ? (
-          <div className="card-surface flex items-center justify-center py-10 text-slate-400">
-            <Loader2 className="size-6 animate-spin" />
-          </div>
-        ) : (
-          selectedDate && (
-            <div className="space-y-4">
-              <AdminReportDetail date={selectedDate} report={selectedReport} />
-              {selectedReport && (
-                <AdminNoteEditor
-                  key={selectedReport.id}
-                  reportId={selectedReport.id}
-                  initialNote={selectedReport.admin_note}
-                  onSaved={(note) => {
-                    setReports((prev) =>
-                      prev.map((r) =>
-                        r.id === selectedReport.id ? { ...r, admin_note: note } : r
-                      )
-                    );
-                  }}
-                />
-              )}
-            </div>
-          )
-        )}
       </div>
+
+      {loading ? (
+        <div className="card-surface flex items-center justify-center py-10 text-slate-400">
+          <Loader2 className="size-6 animate-spin" />
+        </div>
+      ) : (
+        selectedDate && (
+          <div className="space-y-4">
+            <AdminReportDetail date={selectedDate} report={selectedReport} />
+            {selectedReport && (
+              <AdminNoteEditor
+                key={selectedReport.id}
+                reportId={selectedReport.id}
+                initialNote={selectedReport.admin_note}
+                onSaved={(note) => {
+                  setReports((prev) =>
+                    prev.map((r) =>
+                      r.id === selectedReport.id ? { ...r, admin_note: note } : r
+                    )
+                  );
+                }}
+              />
+            )}
+          </div>
+        )
+      )}
 
       <ConfirmModal
         open={exportOpen}

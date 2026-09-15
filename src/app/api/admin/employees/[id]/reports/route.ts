@@ -26,11 +26,12 @@ export async function GET(
 
   const { data, error } = await supabaseAdmin
     .from("daily_reports")
-    .select("*")
+    .select("*, activities:daily_report_activities(*)")
     .eq("user_id", id)
     .gte("report_date", start)
     .lte("report_date", end)
-    .order("report_date", { ascending: true });
+    .order("report_date", { ascending: true })
+    .order("urutan", { referencedTable: "daily_report_activities", ascending: true });
 
   if (error) {
     return NextResponse.json({ error: "Gagal mengambil data" }, { status: 500 });

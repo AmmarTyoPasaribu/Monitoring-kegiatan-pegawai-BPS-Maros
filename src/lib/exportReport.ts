@@ -6,17 +6,39 @@ import type { DailyReport } from "@/types";
 
 const COLUMNS = [
   { label: "Tanggal", width: 14 },
-  { label: "Rencana Kinerja", width: 26 },
-  { label: "Kegiatan", width: 26 },
-  { label: "Target", width: 18 },
-  { label: "Realisasi", width: 18 },
-  { label: "Progress ( %)", width: 14 },
-  { label: "Kendala", width: 22 },
-  { label: "Solusi", width: 22 },
-  { label: "Keterangan", width: 22 },
+  { label: "A. Uraian Kegiatan Hari Ini", width: 45 },
+  { label: "B.1 Kuantitas", width: 22 },
+  { label: "B.2 Kualitas", width: 22 },
+  { label: "B.3 Waktu", width: 22 },
+  { label: "C. Kendala", width: 22 },
+  { label: "C. Solusi", width: 22 },
+  { label: "D. Rencana Besok", width: 28 },
+  { label: "E. Keterangan", width: 22 },
 ];
 
 export class EmployeeNotFoundError extends Error {}
+
+function formatActivities(report: DailyReport | undefined): string {
+  if (!report?.activities?.length) return "";
+  return report.activities
+    .map((a) => {
+      const parts = [a.jam, a.uraian_tugas].filter(Boolean).join(" - ");
+      const extras = [
+        a.output_target ? `Target: ${a.output_target}` : "",
+        a.status ? `Status: ${a.status}` : "",
+        a.link_dokumentasi ? `Dok: ${a.link_dokumentasi}` : "",
+      ]
+        .filter(Boolean)
+        .join(" | ");
+      return extras ? `${parts} (${extras})` : parts;
+    })
+    .join("\n");
+}
+
+function formatRencanaBesok(report: DailyReport | undefined): string {
+  if (!report?.rencana_besok?.length) return "";
+  return report.rencana_besok.map((r, i) => `${i + 1}. ${r}`).join("\n");
+}
 
 /** Tambahkan satu sheet rekap bulanan seorang pegawai ke workbook yang ada. */
 function addMonthlyReportSheet(
@@ -91,13 +113,13 @@ function addMonthlyReportSheet(
     const displayDate = `${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")}/${year}`;
     const row = sheet.addRow([
       displayDate,
-      r?.rencana_kinerja || "",
-      r?.kegiatan || "",
-      r?.target || "",
-      r?.realisasi || "",
-      r?.progress ?? "",
+      formatActivities(r),
+      r?.capaian_kuantitas || "",
+      r?.capaian_kualitas || "",
+      r?.capaian_waktu || "",
       r?.kendala || "",
       r?.solusi || "",
+      formatRencanaBesok(r),
       r?.keterangan || "",
     ]);
     row.eachCell((cell) => {
@@ -131,10 +153,11 @@ export async function generateMonthlyReportExcel(userId: string, year: number, m
 
   const { data: reports, error: repError } = await supabaseAdmin
     .from("daily_reports")
-    .select("*")
+    .select("*, activities:daily_report_activities(*)")
     .eq("user_id", userId)
     .gte("report_date", start)
-    .lte("report_date", end);
+    .lte("report_date", end)
+    .order("urutan", { referencedTable: "daily_report_activities", ascending: true });
 
   if (repError) {
     throw new Error("Gagal mengambil laporan");
@@ -172,9 +195,10 @@ export async function generateAllEmployeesMonthlyReportExcel(year: number, month
   // (jauh lebih efisien daripada satu query per pegawai).
   const { data: allReports, error: repError } = await supabaseAdmin
     .from("daily_reports")
-    .select("*")
+    .select("*, activities:daily_report_activities(*)")
     .gte("report_date", start)
-    .lte("report_date", end);
+    .lte("report_date", end)
+    .order("urutan", { referencedTable: "daily_report_activities", ascending: true });
 
   if (repError) throw new Error("Gagal mengambil laporan");
 
