@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { Input, Label, Textarea } from "@/components/ui/Field";
 import { ContohPengisianModal } from "@/components/pegawai/ContohPengisianModal";
+import { TimeRangeInput } from "@/components/pegawai/TimeRangeInput";
 import { formatIndonesianDate } from "@/lib/time";
 import type { DailyReport, DailyReportActivity, DailyReportInput } from "@/types";
 
@@ -18,6 +19,13 @@ const EMPTY_ACTIVITY: DailyReportActivity = {
   link_dokumentasi: "",
 };
 
+// `id` di sini murni untuk key React (baris baru belum punya id dari DB) supaya
+// TimeRangeInput tidak salah state saat baris lain ditambah/dihapus. Server tidak
+// pernah membaca field ini saat insert.
+function newActivity(): DailyReportActivity {
+  return { ...EMPTY_ACTIVITY, id: crypto.randomUUID() };
+}
+
 const EMPTY_FORM: DailyReportInput = {
   capaian_kuantitas: "",
   capaian_kualitas: "",
@@ -26,7 +34,7 @@ const EMPTY_FORM: DailyReportInput = {
   solusi: "",
   rencana_besok: [""],
   keterangan: "",
-  activities: [{ ...EMPTY_ACTIVITY }],
+  activities: [{ ...EMPTY_ACTIVITY, id: "new-0" }],
 };
 
 function reportToForm(r: DailyReport): DailyReportInput {
@@ -38,7 +46,9 @@ function reportToForm(r: DailyReport): DailyReportInput {
     solusi: r.solusi || "",
     rencana_besok: r.rencana_besok?.length ? r.rencana_besok : [""],
     keterangan: r.keterangan || "",
-    activities: r.activities?.length ? r.activities.map((a) => ({ ...a })) : [{ ...EMPTY_ACTIVITY }],
+    activities: r.activities?.length
+      ? r.activities.map((a) => ({ ...a }))
+      : [{ ...EMPTY_ACTIVITY, id: "new-0" }],
   };
 }
 
@@ -80,7 +90,7 @@ export function ReportPanel({
   }
 
   function addActivity() {
-    setForm((f) => ({ ...f, activities: [...f.activities, { ...EMPTY_ACTIVITY }] }));
+    setForm((f) => ({ ...f, activities: [...f.activities, newActivity()] }));
   }
 
   function removeActivity(idx: number) {
@@ -146,12 +156,12 @@ export function ReportPanel({
 
   return (
     <div className="card-surface p-5">
-      <div className="mb-4 flex items-center justify-between">
-        <div>
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <p className="text-xs font-bold uppercase tracking-wide text-brand-blue">
             Laporan Harian
           </p>
-          <p className="font-heading text-base font-bold text-slate-900">
+          <p className="truncate font-heading text-base font-bold text-slate-900">
             {formatIndonesianDate(date)}
           </p>
         </div>
@@ -346,7 +356,7 @@ export function ReportPanel({
       ) : (
         <div className="space-y-4">
           <div className="rounded-2xl border border-slate-200 bg-slate-100 p-4">
-            <div className="mb-3 flex items-center justify-between">
+            <div className="mb-3 flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
               <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-brand-blue-dark">
                 <ListChecks className="size-3.5" /> A. Uraian Kegiatan Hari Ini
               </p>
@@ -356,7 +366,7 @@ export function ReportPanel({
             </div>
             <div className="space-y-3">
               {form.activities.map((a, idx) => (
-                <div key={idx} className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-sm">
+                <div key={a.id} className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-sm">
                   <div className="mb-3 flex items-center justify-between">
                     <span className="rounded-full bg-brand-blue/10 px-2.5 py-1 text-xs font-bold text-brand-blue-dark">
                       Kegiatan {idx + 1}
@@ -370,23 +380,20 @@ export function ReportPanel({
                       <Trash2 className="size-4" />
                     </button>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label>Jam</Label>
-                      <Input
-                        placeholder="08.00-08.15"
-                        value={a.jam}
-                        onChange={(e) => updateActivity(idx, "jam", e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <Label>Status</Label>
-                      <Input
-                        placeholder="Selesai / 80%"
-                        value={a.status}
-                        onChange={(e) => updateActivity(idx, "status", e.target.value)}
-                      />
-                    </div>
+                  <div>
+                    <Label>Jam</Label>
+                    <TimeRangeInput
+                      value={a.jam}
+                      onChange={(v) => updateActivity(idx, "jam", v)}
+                    />
+                  </div>
+                  <div className="mt-3">
+                    <Label>Status</Label>
+                    <Input
+                      placeholder="Selesai / 80%"
+                      value={a.status}
+                      onChange={(e) => updateActivity(idx, "status", e.target.value)}
+                    />
                   </div>
                   <div className="mt-3">
                     <Label>Uraian Tugas</Label>
@@ -472,7 +479,7 @@ export function ReportPanel({
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-slate-100 p-4">
-            <div className="mb-3 flex items-center justify-between">
+            <div className="mb-3 flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-xs font-bold uppercase tracking-wide text-brand-blue-dark">
                 D. Rencana Kegiatan Besok
               </p>

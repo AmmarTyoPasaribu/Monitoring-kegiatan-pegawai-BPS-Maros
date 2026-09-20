@@ -64,29 +64,15 @@ export function ContohPengisianModal() {
             <p className="mb-2 text-xs font-bold uppercase tracking-wide text-brand-blue-dark">
               A. Uraian Kegiatan Hari Ini
             </p>
-            <div className="overflow-hidden rounded-xl border border-slate-200">
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[520px] text-left text-sm">
-                  <thead className="bg-slate-50 text-xs uppercase text-slate-500">
-                    <tr>
-                      <th className="px-3 py-2 font-semibold">Jam</th>
-                      <th className="px-3 py-2 font-semibold">Uraian Tugas</th>
-                      <th className="px-3 py-2 font-semibold">Output/Target</th>
-                      <th className="px-3 py-2 font-semibold">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {ACTIVITY_EXAMPLES.map((a, i) => (
-                      <tr key={i}>
-                        <td className="px-3 py-2 align-top text-slate-600">{a.jam}</td>
-                        <td className="px-3 py-2 align-top text-slate-700">{a.uraian_tugas}</td>
-                        <td className="px-3 py-2 align-top text-slate-600">{a.output_target}</td>
-                        <td className="px-3 py-2 align-top text-slate-600">{a.status}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+            <div className="space-y-2.5">
+              {ACTIVITY_EXAMPLES.map((a, i) => (
+                <div key={i} className="rounded-xl border border-slate-200 p-3">
+                  <p className="text-xs font-semibold text-brand-blue-dark">{a.jam}</p>
+                  <p className="mt-1 font-medium text-slate-800">{a.uraian_tugas}</p>
+                  <p className="mt-1 text-xs text-slate-500">Target: {a.output_target}</p>
+                  <p className="mt-1 text-xs text-slate-500">Status: {a.status}</p>
+                </div>
+              ))}
             </div>
           </div>
 
