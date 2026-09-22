@@ -388,14 +388,6 @@ export function ReportPanel({
                     />
                   </div>
                   <div className="mt-3">
-                    <Label>Status</Label>
-                    <Input
-                      placeholder="Selesai / 80%"
-                      value={a.status}
-                      onChange={(e) => updateActivity(idx, "status", e.target.value)}
-                    />
-                  </div>
-                  <div className="mt-3">
                     <Label>Uraian Tugas</Label>
                     <Textarea
                       value={a.uraian_tugas}
@@ -407,6 +399,14 @@ export function ReportPanel({
                     <Textarea
                       value={a.output_target}
                       onChange={(e) => updateActivity(idx, "output_target", e.target.value)}
+                    />
+                  </div>
+                  <div className="mt-3">
+                    <Label>Status</Label>
+                    <Input
+                      placeholder="Selesai / 80%"
+                      value={a.status}
+                      onChange={(e) => updateActivity(idx, "status", e.target.value)}
                     />
                   </div>
                   <div className="mt-3">
