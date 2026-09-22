@@ -16,7 +16,7 @@ interface EmployeeWithStatus {
   filledToday: boolean;
 }
 
-type SortMode = "name" | "status";
+type SortMode = "name" | "filled_first" | "unfilled_first";
 const ALL_DIVISIONS = "__all__";
 
 export function DaftarPegawaiClient({ employees }: { employees: EmployeeWithStatus[] }) {
@@ -37,6 +37,11 @@ export function DaftarPegawaiClient({ employees }: { employees: EmployeeWithStat
     const list = [...filtered];
     if (sortMode === "name") {
       list.sort((a, b) => a.full_name.localeCompare(b.full_name));
+    } else if (sortMode === "filled_first") {
+      list.sort((a, b) => {
+        if (a.filledToday !== b.filledToday) return a.filledToday ? -1 : 1;
+        return a.full_name.localeCompare(b.full_name);
+      });
     } else {
       list.sort((a, b) => {
         if (a.filledToday !== b.filledToday) return a.filledToday ? 1 : -1;
@@ -81,7 +86,8 @@ export function DaftarPegawaiClient({ employees }: { employees: EmployeeWithStat
             className="w-auto min-w-[220px] py-2"
           >
             <option value="name">Urutkan: Nama (A-Z)</option>
-            <option value="status">Urutkan: Belum Isi Kegiatan Dulu</option>
+            <option value="unfilled_first">Urutkan: Belum Isi Dulu</option>
+            <option value="filled_first">Urutkan: Sudah Isi Dulu</option>
           </Select>
         </div>
       </div>

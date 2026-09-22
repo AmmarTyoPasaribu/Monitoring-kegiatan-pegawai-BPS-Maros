@@ -80,7 +80,7 @@ export default function LoginPage() {
 
         <div className="relative max-w-sm">
           <h1 className="font-heading text-3xl font-extrabold leading-tight text-white">
-            Monitoring Kegiatan Pegawai
+            Monitoring Target Realisasi Harian Pegawai
           </h1>
           <p className="mt-3 text-sm leading-relaxed text-white/75">
             Pantau rencana kerja, realisasi, dan progres kegiatan harian
@@ -105,7 +105,7 @@ export default function LoginPage() {
               Masuk ke Akun Anda
             </h2>
             <p className="mt-1 text-sm text-slate-500">
-              BPS Kabupaten Maros &mdash; Sistem Monitoring Kegiatan Pegawai
+              BPS Kabupaten Maros &mdash; Sistem Monitoring Target Realisasi Harian Pegawai
             </p>
           </div>
 

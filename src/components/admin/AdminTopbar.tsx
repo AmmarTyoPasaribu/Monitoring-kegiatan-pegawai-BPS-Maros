@@ -33,7 +33,7 @@ export function AdminTopbar({
           <img src="/logo.webp" alt="Logo BPS" className="size-full object-contain" />
         </div>
         <p className="truncate font-heading text-sm font-bold text-slate-900 sm:text-base">
-          <span className="hidden sm:inline">Monitoring Kegiatan Pegawai BPS Maros</span>
+          <span className="hidden sm:inline">Monitoring Target Realisasi Harian Pegawai BPS Maros</span>
           <span className="sm:hidden">BPS Maros</span>
         </p>
       </div>

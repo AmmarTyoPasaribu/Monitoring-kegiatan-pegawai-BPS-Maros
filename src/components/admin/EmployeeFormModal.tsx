@@ -6,7 +6,7 @@ import { Camera } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { Button } from "@/components/ui/Button";
-import { Input, Label } from "@/components/ui/Field";
+import { Input, Label, Select } from "@/components/ui/Field";
 import { Avatar } from "@/components/ui/Avatar";
 import { compressImage } from "@/lib/compressImage";
 
@@ -23,6 +23,7 @@ interface EmployeeFormModalProps {
   open: boolean;
   onClose: () => void;
   employee: Employee | null; // null = mode tambah
+  divisions: string[];
   onSaved: (employee: Employee) => void;
 }
 
@@ -30,7 +31,7 @@ const EMPTY = { full_name: "", username: "", email: "", password: "", division: 
 
 // Parent harus memberi `key` yang berubah tiap kali modal dibuka (mis. employee?.id ?? "create"
 // digabung counter) supaya komponen ini remount dan form ter-reset otomatis, tanpa perlu effect.
-export function EmployeeFormModal({ open, onClose, employee, onSaved }: EmployeeFormModalProps) {
+export function EmployeeFormModal({ open, onClose, employee, divisions, onSaved }: EmployeeFormModalProps) {
   const isEdit = Boolean(employee);
   const [form, setForm] = useState(() =>
     employee
@@ -43,6 +44,13 @@ export function EmployeeFormModal({ open, onClose, employee, onSaved }: Employee
         }
       : EMPTY
   );
+  // Selalu sertakan divisi pegawai yang sedang diedit, walau namanya tidak persis
+  // sama dengan divisi lain yang ada saat ini -> supaya data lama tidak hilang
+  // diam-diam hanya karena membuka modal edit.
+  const divisionOptions = employee?.division && !divisions.includes(employee.division)
+    ? [employee.division, ...divisions]
+    : divisions;
+
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(employee?.photo_url || null);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -168,11 +176,17 @@ export function EmployeeFormModal({ open, onClose, employee, onSaved }: Employee
 
           <div>
             <Label>Divisi</Label>
-            <Input
+            <Select
               value={form.division}
               onChange={(e) => setForm((f) => ({ ...f, division: e.target.value }))}
-              placeholder="mis. Statistik Produksi"
-            />
+            >
+              <option value="">Tanpa Divisi</option>
+              {divisionOptions.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </Select>
           </div>
 
           <div className="flex justify-end gap-3 pt-2">

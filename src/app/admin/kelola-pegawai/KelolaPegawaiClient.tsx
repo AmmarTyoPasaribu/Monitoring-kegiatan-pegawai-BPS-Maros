@@ -220,6 +220,7 @@ export function KelolaPegawaiClient({ initialEmployees }: { initialEmployees: Em
         open={formOpen}
         onClose={() => setFormOpen(false)}
         employee={editingEmployee}
+        divisions={divisions}
         onSaved={handleSaved}
       />
 
