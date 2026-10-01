@@ -4,7 +4,9 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { daysInMonth, monthNameId } from "@/lib/time";
 import type { DailyReport } from "@/types";
 
-const COLUMNS = [
+export type ExportMode = "per-date" | "per-activity";
+
+const COLUMNS_PER_DATE = [
   { label: "Tanggal", width: 14 },
   { label: "A. Uraian Kegiatan Hari Ini", width: 45 },
   { label: "B.1 Kuantitas", width: 22 },
@@ -15,6 +17,26 @@ const COLUMNS = [
   { label: "D. Rencana Besok", width: 28 },
   { label: "E. Keterangan", width: 22 },
 ];
+
+const COLUMNS_PER_ACTIVITY = [
+  { label: "Tanggal", width: 14 },
+  { label: "Jam", width: 14 },
+  { label: "Uraian Tugas", width: 32 },
+  { label: "Output/Target", width: 26 },
+  { label: "Status", width: 18 },
+  { label: "Link Dokumentasi", width: 28 },
+  { label: "B.1 Kuantitas", width: 22 },
+  { label: "B.2 Kualitas", width: 22 },
+  { label: "B.3 Waktu", width: 22 },
+  { label: "C. Kendala", width: 22 },
+  { label: "C. Solusi", width: 22 },
+  { label: "D. Rencana Besok", width: 28 },
+  { label: "E. Keterangan", width: 22 },
+];
+
+// Kolom-kolom ini (indeks 1-based) diisi sekali per tanggal lalu di-merge vertikal
+// mengikuti jumlah baris kegiatan pada tanggal itu, di mode "per-activity".
+const MERGE_COLUMNS_PER_ACTIVITY = [1, 7, 8, 9, 10, 11, 12, 13];
 
 export class EmployeeNotFoundError extends Error {}
 
@@ -40,19 +62,7 @@ function formatRencanaBesok(report: DailyReport | undefined): string {
   return report.rencana_besok.map((r, i) => `${i + 1}. ${r}`).join("\n");
 }
 
-/** Tambahkan satu sheet rekap bulanan seorang pegawai ke workbook yang ada. */
-function addMonthlyReportSheet(
-  workbook: ExcelJS.Workbook,
-  employeeName: string,
-  reports: DailyReport[],
-  year: number,
-  month: number,
-  usedSheetNames: Set<string>
-) {
-  const totalDays = daysInMonth(year, month);
-  const reportByDate = new Map<string, DailyReport>();
-  for (const r of reports) reportByDate.set(r.report_date, r);
-
+function makeUniqueSheetName(employeeName: string, usedSheetNames: Set<string>): string {
   let sheetName = employeeName.replace(/[[\]*/\\?:]/g, "").slice(0, 28) || "Laporan";
   let suffix = 2;
   while (usedSheetNames.has(sheetName)) {
@@ -61,14 +71,23 @@ function addMonthlyReportSheet(
     suffix++;
   }
   usedSheetNames.add(sheetName);
+  return sheetName;
+}
 
-  const sheet = workbook.addWorksheet(sheetName);
-  sheet.columns = COLUMNS.map((c) => ({ width: c.width }));
+function addSheetHeader(
+  sheet: ExcelJS.Worksheet,
+  columns: { label: string; width: number }[],
+  employeeName: string,
+  year: number,
+  month: number,
+  totalDays: number
+) {
+  sheet.columns = columns.map((c) => ({ width: c.width }));
 
   const titleRow = sheet.addRow([
     "MONITORING TARGET DAN REALISASI KINERJA PEGAWAI BPS KABUPATEN MAROS",
   ]);
-  sheet.mergeCells(titleRow.number, 1, titleRow.number, COLUMNS.length);
+  sheet.mergeCells(titleRow.number, 1, titleRow.number, columns.length);
   titleRow.getCell(1).font = { bold: true };
   titleRow.getCell(1).alignment = { horizontal: "center" };
   titleRow.getCell(1).fill = {
@@ -91,7 +110,7 @@ function addMonthlyReportSheet(
 
   sheet.addRow([]);
 
-  const headerRow = sheet.addRow(COLUMNS.map((c) => c.label));
+  const headerRow = sheet.addRow(columns.map((c) => c.label));
   headerRow.eachCell((cell) => {
     cell.font = { bold: true };
     cell.fill = {
@@ -106,6 +125,23 @@ function addMonthlyReportSheet(
       right: { style: "thin" },
     };
   });
+}
+
+/** Mode ringkas: satu baris per tanggal, kegiatan digabung jadi satu sel multi-baris. */
+function addMonthlyReportSheetPerDate(
+  workbook: ExcelJS.Workbook,
+  employeeName: string,
+  reports: DailyReport[],
+  year: number,
+  month: number,
+  usedSheetNames: Set<string>
+) {
+  const totalDays = daysInMonth(year, month);
+  const reportByDate = new Map<string, DailyReport>();
+  for (const r of reports) reportByDate.set(r.report_date, r);
+
+  const sheet = workbook.addWorksheet(makeUniqueSheetName(employeeName, usedSheetNames));
+  addSheetHeader(sheet, COLUMNS_PER_DATE, employeeName, year, month, totalDays);
 
   for (let day = 1; day <= totalDays; day++) {
     const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
@@ -134,8 +170,80 @@ function addMonthlyReportSheet(
   }
 }
 
+/** Mode detail: satu baris per kegiatan; kolom tanggal & bagian B-E di-merge vertikal
+ * mengikuti jumlah baris kegiatan pada tanggal tersebut. */
+function addMonthlyReportSheetPerActivity(
+  workbook: ExcelJS.Workbook,
+  employeeName: string,
+  reports: DailyReport[],
+  year: number,
+  month: number,
+  usedSheetNames: Set<string>
+) {
+  const totalDays = daysInMonth(year, month);
+  const reportByDate = new Map<string, DailyReport>();
+  for (const r of reports) reportByDate.set(r.report_date, r);
+
+  const sheet = workbook.addWorksheet(makeUniqueSheetName(employeeName, usedSheetNames));
+  addSheetHeader(sheet, COLUMNS_PER_ACTIVITY, employeeName, year, month, totalDays);
+
+  for (let day = 1; day <= totalDays; day++) {
+    const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    const r = reportByDate.get(dateStr);
+    const displayDate = `${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")}/${year}`;
+    const activities = r?.activities?.length ? r.activities : [null];
+    const rencanaBesok = formatRencanaBesok(r);
+
+    const startRow = sheet.rowCount + 1;
+    for (const a of activities) {
+      sheet.addRow([
+        displayDate,
+        a?.jam || "",
+        a?.uraian_tugas || "",
+        a?.output_target || "",
+        a?.status || "",
+        a?.link_dokumentasi || "",
+        r?.capaian_kuantitas || "",
+        r?.capaian_kualitas || "",
+        r?.capaian_waktu || "",
+        r?.kendala || "",
+        r?.solusi || "",
+        rencanaBesok,
+        r?.keterangan || "",
+      ]);
+    }
+    const endRow = sheet.rowCount;
+
+    for (let rowNum = startRow; rowNum <= endRow; rowNum++) {
+      sheet.getRow(rowNum).eachCell({ includeEmpty: true }, (cell, colNumber) => {
+        cell.border = {
+          top: { style: "thin" },
+          bottom: { style: "thin" },
+          left: { style: "thin" },
+          right: { style: "thin" },
+        };
+        cell.alignment =
+          colNumber === 1
+            ? { vertical: "middle", horizontal: "center", wrapText: true }
+            : { vertical: "top", wrapText: true };
+      });
+    }
+
+    if (endRow > startRow) {
+      for (const col of MERGE_COLUMNS_PER_ACTIVITY) {
+        sheet.mergeCells(startRow, col, endRow, col);
+      }
+    }
+  }
+}
+
 /** Generate buffer Excel rekap laporan bulanan seorang pegawai. */
-export async function generateMonthlyReportExcel(userId: string, year: number, month: number) {
+export async function generateMonthlyReportExcel(
+  userId: string,
+  year: number,
+  month: number,
+  mode: ExportMode = "per-date"
+) {
   const { data: employee, error: empError } = await supabaseAdmin
     .from("users")
     .select("full_name")
@@ -164,7 +272,8 @@ export async function generateMonthlyReportExcel(userId: string, year: number, m
   }
 
   const workbook = new ExcelJS.Workbook();
-  addMonthlyReportSheet(workbook, employee.full_name, reports || [], year, month, new Set());
+  const addSheet = mode === "per-activity" ? addMonthlyReportSheetPerActivity : addMonthlyReportSheetPerDate;
+  addSheet(workbook, employee.full_name, reports || [], year, month, new Set());
 
   const buffer = await workbook.xlsx.writeBuffer();
   const fileName = `Laporan_${employee.full_name.replace(/[^a-z0-9]+/gi, "_")}_${monthNameId(
@@ -175,7 +284,11 @@ export async function generateMonthlyReportExcel(userId: string, year: number, m
 }
 
 /** Generate satu workbook berisi rekap bulanan SEMUA pegawai (satu sheet per pegawai). */
-export async function generateAllEmployeesMonthlyReportExcel(year: number, month: number) {
+export async function generateAllEmployeesMonthlyReportExcel(
+  year: number,
+  month: number,
+  mode: ExportMode = "per-date"
+) {
   const { data: employees, error: empError } = await supabaseAdmin
     .from("users")
     .select("id, full_name")
@@ -210,16 +323,10 @@ export async function generateAllEmployeesMonthlyReportExcel(year: number, month
   }
 
   const workbook = new ExcelJS.Workbook();
+  const addSheet = mode === "per-activity" ? addMonthlyReportSheetPerActivity : addMonthlyReportSheetPerDate;
   const usedSheetNames = new Set<string>();
   for (const emp of employees) {
-    addMonthlyReportSheet(
-      workbook,
-      emp.full_name,
-      reportsByUser.get(emp.id) || [],
-      year,
-      month,
-      usedSheetNames
-    );
+    addSheet(workbook, emp.full_name, reportsByUser.get(emp.id) || [], year, month, usedSheetNames);
   }
 
   const buffer = await workbook.xlsx.writeBuffer();

@@ -1,10 +1,19 @@
 import Link from "next/link";
-import { ClipboardCheck, ClipboardEdit, CalendarDays, ChevronRight, TrendingUp } from "lucide-react";
+import {
+  CalendarCheck2,
+  ClipboardCheck,
+  ClipboardEdit,
+  CalendarDays,
+  ChevronRight,
+  ListChecks,
+  TrendingUp,
+} from "lucide-react";
 import { getSession } from "@/lib/session";
 import { supabaseAdmin } from "@/lib/supabase";
 import { Badge } from "@/components/ui/Badge";
 import { LogoutButton } from "@/components/shared/LogoutButton";
 import { ProfileAvatarButton } from "@/components/pegawai/ProfileAvatarButton";
+import { AnnouncementBanner } from "@/components/pegawai/AnnouncementBanner";
 import {
   formatIndonesianDate,
   getWitaNowParts,
@@ -90,18 +99,19 @@ export default async function BerandaPage() {
           <Badge tone="orange">Aktif</Badge>
         </div>
 
-        <div className="mt-8 flex flex-col items-center text-center">
+        <div className="relative mt-8 flex flex-col items-center text-center">
           <div
             className={
               filled
-                ? "mb-4 flex size-20 items-center justify-center rounded-full bg-brand-green/10 text-brand-green"
-                : "mb-4 flex size-20 items-center justify-center rounded-full bg-brand-blue/10 text-brand-blue"
+                ? "relative mb-4 flex size-20 items-center justify-center overflow-hidden rounded-full bg-brand-green/10 text-brand-green"
+                : "relative mb-4 flex size-20 items-center justify-center overflow-hidden rounded-full bg-brand-blue/10 text-brand-blue"
             }
           >
+            <span className="dot-pattern absolute inset-0 opacity-40" aria-hidden />
             {filled ? (
-              <ClipboardCheck className="size-9" />
+              <ClipboardCheck className="relative size-9" />
             ) : (
-              <ClipboardEdit className="size-9" />
+              <ClipboardEdit className="relative size-9" />
             )}
           </div>
           <h2 className="font-heading text-lg font-bold text-slate-900">
@@ -127,6 +137,8 @@ export default async function BerandaPage() {
         </div>
       </div>
 
+      <AnnouncementBanner />
+
       <div className="card-surface p-5">
         <div className="mb-4 flex items-center gap-3">
           <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-orange/10 text-brand-orange">
@@ -140,13 +152,19 @@ export default async function BerandaPage() {
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-xl bg-surface px-4 py-3 text-center">
+          <div className="rounded-xl bg-brand-blue/5 px-4 py-3.5 text-center">
+            <div className="mx-auto mb-1.5 flex size-8 items-center justify-center rounded-full bg-brand-blue/10 text-brand-blue">
+              <CalendarCheck2 className="size-4" />
+            </div>
             <p className="font-heading text-2xl font-extrabold text-slate-900">
               {filledDaysThisMonth}/{day}
             </p>
             <p className="text-xs text-slate-500">Hari terisi</p>
           </div>
-          <div className="rounded-xl bg-surface px-4 py-3 text-center">
+          <div className="rounded-xl bg-brand-green/5 px-4 py-3.5 text-center">
+            <div className="mx-auto mb-1.5 flex size-8 items-center justify-center rounded-full bg-brand-green/10 text-brand-green">
+              <ListChecks className="size-4" />
+            </div>
             <p className="font-heading text-2xl font-extrabold text-slate-900">
               {avgActivitiesThisMonth}
             </p>

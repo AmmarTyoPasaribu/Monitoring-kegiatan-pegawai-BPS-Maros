@@ -103,10 +103,12 @@ export function MonthCalendar({
                 disabled={isFuture}
                 onClick={() => onSelectDate(dateStr)}
                 className={cn(
-                  "relative flex flex-col items-center justify-center gap-1 py-2.5 text-sm font-medium transition-colors",
+                  "relative flex flex-col items-center justify-center gap-1 py-2.5 text-sm font-medium transition-all",
                   isWeekendCol && !isSelected && "bg-slate-50/70",
                   isFuture && "cursor-not-allowed text-slate-300",
-                  !isFuture && !isSelected && "text-slate-700 hover:bg-brand-blue/5",
+                  !isFuture &&
+                    !isSelected &&
+                    "text-slate-700 hover:z-10 hover:scale-[1.06] hover:bg-brand-blue/5 hover:shadow-md hover:shadow-slate-900/10",
                   isSelected && "z-10 bg-brand-blue text-white shadow-sm shadow-brand-blue/25",
                   isToday && !isSelected && "z-10 ring-2 ring-inset ring-brand-blue/50"
                 )}

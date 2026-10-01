@@ -19,7 +19,7 @@ export function Label({
   required?: boolean;
 }) {
   return (
-    <label className="mb-1.5 block text-sm font-medium text-slate-700">
+    <label className="mb-1.5 block text-[15px] font-bold text-slate-700">
       {children}
       {required && <span className="text-red-500"> *</span>}
     </label>

@@ -105,7 +105,9 @@ export async function POST(req: Request) {
       cleanedActivities.map((a, idx) => ({
         report_id: report.id,
         urutan: idx,
-        jam: a.jam,
+        // Jam dibiarkan kosong saat diisi -> default ke 00.00-00.00 supaya tetap
+        // dalam format yang bisa dibaca ulang oleh TimeRangeInput saat diedit.
+        jam: a.jam || "00.00-00.00",
         uraian_tugas: a.uraian_tugas,
         output_target: a.output_target,
         status: a.status,

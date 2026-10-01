@@ -51,6 +51,13 @@ body {
   background-position: 0 0;
 }
 
+/* Pola titik dekoratif yang warnanya ikut class text-* pada elemen yang sama
+   (pakai currentColor), supaya bisa dipakai ulang dengan warna berbeda-beda. */
+.dot-pattern {
+  background-image: radial-gradient(circle, currentColor 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+
 /* Sembunyikan spinner default input number (dipakai untuk Progress %) */
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button {

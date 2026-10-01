@@ -38,11 +38,18 @@ export function TimeRangeInput({
   const endMRef = useRef<HTMLInputElement>(null);
 
   function emit(sh: string, sm: string, eh: string, em: string) {
-    if (sh.length === 2 && sm.length === 2 && eh.length === 2 && em.length === 2) {
-      onChange(`${sh}.${sm}-${eh}.${em}`);
+    // 1 digit sudah dianggap nilai final (mis. "8" -> jam 8), di-pad jadi "08" saat
+    // digabung -> tidak perlu tepat 2 digit dulu baru dianggap terisi.
+    if (sh && sm && eh && em) {
+      const pad = (v: string) => v.padStart(2, "0");
+      onChange(`${pad(sh)}.${pad(sm)}-${pad(eh)}.${pad(em)}`);
     } else {
       onChange("");
     }
+  }
+
+  function padOnBlur(setter: React.Dispatch<React.SetStateAction<string>>) {
+    setter((v) => (v.length === 1 ? v.padStart(2, "0") : v));
   }
 
   return (
@@ -63,6 +70,7 @@ export function TimeRangeInput({
             emit(digits, startM, endH, endM);
             if (digits.length === 2) startMRef.current?.focus();
           }}
+          onBlur={() => padOnBlur(setStartH)}
         />
         <span className="text-slate-400">:</span>
         <input
@@ -80,6 +88,7 @@ export function TimeRangeInput({
             emit(startH, digits, endH, endM);
             if (digits.length === 2) endHRef.current?.focus();
           }}
+          onBlur={() => padOnBlur(setStartM)}
         />
       </div>
 
@@ -100,6 +109,7 @@ export function TimeRangeInput({
             emit(startH, startM, digits, endM);
             if (digits.length === 2) endMRef.current?.focus();
           }}
+          onBlur={() => padOnBlur(setEndH)}
         />
         <span className="text-slate-400">:</span>
         <input
@@ -116,6 +126,7 @@ export function TimeRangeInput({
             setEndM(digits);
             emit(startH, startM, endH, digits);
           }}
+          onBlur={() => padOnBlur(setEndM)}
         />
       </div>
     </div>

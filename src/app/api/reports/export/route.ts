@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
-import { EmployeeNotFoundError, generateMonthlyReportExcel } from "@/lib/exportReport";
+import { EmployeeNotFoundError, generateMonthlyReportExcel, type ExportMode } from "@/lib/exportReport";
 
-// GET /api/reports/export?year=&month= -> export rekap laporan bulanan milik pegawai yang login
+// GET /api/reports/export?year=&month=&mode=per-date|per-activity -> export rekap laporan
+// bulanan milik pegawai yang login
 export async function GET(req: Request) {
   const session = await getSession();
   if (!session || session.role !== "pegawai") {
@@ -12,13 +13,15 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const year = Number(searchParams.get("year"));
   const month = Number(searchParams.get("month"));
+  const modeParam = searchParams.get("mode");
+  const mode: ExportMode = modeParam === "per-activity" ? "per-activity" : "per-date";
   if (!year || !month) {
     return NextResponse.json({ error: "year & month wajib diisi" }, { status: 400 });
   }
 
   try {
     // Selalu pakai session.id sendiri -> pegawai tidak bisa export data pegawai lain.
-    const { buffer, fileName } = await generateMonthlyReportExcel(session.id, year, month);
+    const { buffer, fileName } = await generateMonthlyReportExcel(session.id, year, month, mode);
     return new NextResponse(new Uint8Array(buffer), {
       headers: {
         "Content-Type":

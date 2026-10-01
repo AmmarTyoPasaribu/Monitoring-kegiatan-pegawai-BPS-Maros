@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ExternalLink, ListChecks, MessageSquare, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -56,6 +56,36 @@ function isValidLink(v: string) {
   return v.trim() === "" || /^https?:\/\/\S+$/i.test(v.trim());
 }
 
+// Draft disimpan per tanggal di localStorage supaya ketikan pegawai yang belum
+// sempat dikirim tidak hilang kalau browser di-refresh atau pindah aplikasi
+// terlalu lama. Dihapus lagi setelah berhasil terkirim atau dibatalkan.
+const DRAFT_PREFIX = "draft_report_";
+
+function loadDraft(date: string): DailyReportInput | null {
+  try {
+    const raw = localStorage.getItem(DRAFT_PREFIX + date);
+    return raw ? (JSON.parse(raw) as DailyReportInput) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveDraft(date: string, data: DailyReportInput) {
+  try {
+    localStorage.setItem(DRAFT_PREFIX + date, JSON.stringify(data));
+  } catch {
+    // best-effort, mis. storage penuh atau mode privat
+  }
+}
+
+function clearDraft(date: string) {
+  try {
+    localStorage.removeItem(DRAFT_PREFIX + date);
+  } catch {
+    // best-effort
+  }
+}
+
 // Parent harus memberi `key={date}` supaya komponen ini remount tiap ganti tanggal,
 // otomatis mereset form/mode edit tanpa perlu effect.
 export function ReportPanel({
@@ -67,12 +97,30 @@ export function ReportPanel({
   existing: DailyReport | null;
   onSaved: (report: DailyReport) => void;
 }) {
-  const [editing, setEditing] = useState(!existing);
-  const [form, setForm] = useState<DailyReportInput>(
-    existing ? reportToForm(existing) : EMPTY_FORM
-  );
+  const [hadDraft] = useState(() => Boolean(loadDraft(date)));
+  const [editing, setEditing] = useState(() => !existing || hadDraft);
+  const [form, setForm] = useState<DailyReportInput>(() => {
+    const draft = loadDraft(date);
+    return draft || (existing ? reportToForm(existing) : EMPTY_FORM);
+  });
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Kasih tahu pegawai kalau ketikan sebelumnya yang belum terkirim barusan dipulihkan.
+  useEffect(() => {
+    if (hadDraft) {
+      toast.info("Draf laporan yang belum terkirim berhasil dipulihkan");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Auto-simpan draft ketikan ke localStorage selagi mode edit, biar tidak
+  // hilang kalau tiba-tiba refresh/pindah aplikasi sebelum sempat dikirim.
+  useEffect(() => {
+    if (!editing) return;
+    const timeout = setTimeout(() => saveDraft(date, form), 400);
+    return () => clearTimeout(timeout);
+  }, [date, form, editing]);
 
   function updateField<K extends keyof DailyReportInput>(key: K, value: DailyReportInput[K]) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -127,6 +175,7 @@ export function ReportPanel({
       }
       toast.success(existing ? "Laporan berhasil diperbarui" : "Laporan berhasil disimpan");
       onSaved(data.report);
+      clearDraft(date);
       setEditing(false);
       setConfirmOpen(false);
     } catch {
@@ -355,13 +404,13 @@ export function ReportPanel({
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="rounded-2xl border border-slate-200 bg-slate-100 p-4">
+          <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-4">
             <div className="mb-3 flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-brand-blue-dark">
+              <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-blue-700">
                 <ListChecks className="size-3.5" /> A. Uraian Kegiatan Hari Ini
               </p>
               <Button type="button" size="sm" variant="primary" onClick={addActivity}>
-                <Plus className="size-3.5" /> Tambah Baris
+                <Plus className="size-3.5" /> Tambah Kegiatan
               </Button>
             </div>
             <div className="space-y-3">
@@ -421,14 +470,14 @@ export function ReportPanel({
               ))}
               {form.activities.length === 0 && (
                 <p className="text-sm text-slate-400">
-                  Belum ada baris kegiatan, tekan &quot;Tambah Baris&quot;.
+                  Belum ada baris kegiatan, tekan &quot;Tambah Kegiatan&quot;.
                 </p>
               )}
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-slate-100 p-4">
-            <p className="mb-3 text-xs font-bold uppercase tracking-wide text-brand-blue-dark">
+          <div className="rounded-2xl border border-green-100 bg-green-50/70 p-4">
+            <p className="mb-3 text-xs font-bold uppercase tracking-wide text-green-700">
               B. Capaian Kinerja Harian
             </p>
             <div className="space-y-3">
@@ -456,8 +505,8 @@ export function ReportPanel({
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-slate-100 p-4">
-            <p className="mb-3 text-xs font-bold uppercase tracking-wide text-brand-blue-dark">
+          <div className="rounded-2xl border border-amber-100 bg-amber-50/70 p-4">
+            <p className="mb-3 text-xs font-bold uppercase tracking-wide text-amber-700">
               C. Kendala & Tindak Lanjut
             </p>
             <div className="space-y-3">
@@ -478,9 +527,9 @@ export function ReportPanel({
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-slate-100 p-4">
+          <div className="rounded-2xl border border-violet-100 bg-violet-50/70 p-4">
             <div className="mb-3 flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-xs font-bold uppercase tracking-wide text-brand-blue-dark">
+              <p className="text-xs font-bold uppercase tracking-wide text-violet-700">
                 D. Rencana Kegiatan Besok
               </p>
               <Button type="button" size="sm" variant="primary" onClick={addRencana}>
@@ -511,7 +560,7 @@ export function ReportPanel({
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-slate-100 p-4">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <Label>E. Keterangan</Label>
             <Textarea
               value={form.keterangan}
@@ -525,6 +574,7 @@ export function ReportPanel({
                 variant="outline"
                 onClick={() => {
                   setForm(reportToForm(existing));
+                  clearDraft(date);
                   setEditing(false);
                 }}
               >
